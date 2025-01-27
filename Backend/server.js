@@ -8,7 +8,7 @@ dotenv.config();
 
 // Connect to MongoDB
 mongoose
-  .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/userdb")
+  .connect(process.env.MONGODB_URI)
   .then(() => console.log("Connected to MongoDB"))
   .catch((err) => console.error("MongoDB connection error:", err));
 
@@ -19,9 +19,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Import models
-const User = require("./models/User");
-const Admin = require("./models/Admin");
+// Import routes
+const userRoutes = require("./routes/userRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+
+// Use routes
+app.use("/api/users", userRoutes);
+app.use("/api/admins", adminRoutes);
 
 // Basic route
 app.get("/", (req, res) => {
