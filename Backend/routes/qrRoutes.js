@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const QRCode = require("../models/QRCode");
 const Organization = require("../models/Organization");
+const Attendance = require("../models/Attendance");
 const auth = require("../middleware/auth");
 const qr = require("qrcode");
 
@@ -14,7 +15,7 @@ router.post("/generate", auth, async (req, res) => {
         .json({ message: "Only users can generate QR codes" });
     }
 
-    const { organisation_uid, roll_no, attendance_date } = req.body;
+    const { organisation_uid, roll_no } = req.body;
 
     // Validate organization and user membership
     const organization = await Organization.findOne({ uid: organisation_uid });
@@ -28,11 +29,45 @@ router.post("/generate", auth, async (req, res) => {
         .json({ message: "User does not belong to this organization" });
     }
 
-    // Create QR code entry
-    const qrCode = new QRCode({
+    // Get today's date (start of day)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Check if QR code already exists for today
+    let qrCode = await QRCode.findOne({
       organisation_uid,
       roll_no,
-      attendance_date: new Date(attendance_date),
+      created_by: req.user._id,
+      attendance_date: {
+        $gte: today,
+        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+      },
+    });
+
+    if (qrCode) {
+      // Return existing QR code
+      const qrData = {
+        id: qrCode._id,
+        organisation_uid,
+        roll_no,
+        attendance_date: qrCode.attendance_date,
+        present: qrCode.present,
+      };
+
+      const qrImage = await qr.toDataURL(JSON.stringify(qrData));
+
+      return res.json({
+        message: "Retrieved existing QR code for today",
+        qrCode: qrCode,
+        qrImage: qrImage,
+      });
+    }
+
+    // Create new QR code entry
+    qrCode = new QRCode({
+      organisation_uid,
+      roll_no,
+      attendance_date: today,
       created_by: req.user._id,
     });
 
@@ -56,12 +91,6 @@ router.post("/generate", auth, async (req, res) => {
       qrImage: qrImage,
     });
   } catch (error) {
-    if (error.code === 11000) {
-      return res.status(400).json({
-        message:
-          "QR code already exists for this organization, roll number, and date",
-      });
-    }
     res.status(500).json({
       message: "Error generating QR code",
       error: error.message,
@@ -109,16 +138,39 @@ router.post("/scan", auth, async (req, res) => {
         .json({ message: "QR code is not valid for today" });
     }
 
-    // Update attendance
+    // Update QR code status
     qrCode.present = true;
     qrCode.scanned_by = req.user._id;
     qrCode.scanned_at = new Date();
 
     await qrCode.save();
 
+    // Create or update attendance record
+    const attendance = await Attendance.findOneAndUpdate(
+      {
+        organisation_uid: qrCode.organisation_uid,
+        user_id: qrCode.created_by,
+        date: new Date(qrCode.attendance_date),
+      },
+      {
+        $set: {
+          status: "present",
+          qr_code: qrCode._id,
+          marked_by: req.user._id,
+          marked_at: new Date(),
+          roll_no: qrCode.roll_no,
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+      }
+    );
+
     res.json({
       message: "Attendance marked successfully",
       qrCode,
+      attendance,
     });
   } catch (error) {
     res.status(500).json({

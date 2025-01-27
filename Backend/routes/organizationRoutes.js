@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Organization = require("../models/Organization");
+const User = require("../models/User");
 const auth = require("../middleware/auth");
 
 // Create organization (Admin only)
@@ -51,9 +52,24 @@ router.post("/:uid/add-user", auth, async (req, res) => {
       return res.status(403).json({ message: "Only admins can add users" });
     }
 
-    const { user_id } = req.body;
-    const organization = await Organization.findOne({ uid: req.params.uid });
+    const { email, username } = req.body;
+    if (!email && !username) {
+      return res.status(400).json({ message: "Email or username is required" });
+    }
 
+    // Find user by email or username
+    let user;
+    if (email) {
+      user = await User.findOne({ email });
+    } else {
+      user = await User.findOne({ user_id: username });
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const organization = await Organization.findOne({ uid: req.params.uid });
     if (!organization) {
       return res.status(404).json({ message: "Organization not found" });
     }
@@ -64,14 +80,22 @@ router.post("/:uid/add-user", auth, async (req, res) => {
         .json({ message: "You are not an admin of this organization" });
     }
 
-    if (organization.user_ids.includes(user_id)) {
+    // Check if user is already in organization
+    if (organization.user_ids.includes(user._id)) {
       return res
         .status(400)
         .json({ message: "User already belongs to this organization" });
     }
 
-    organization.user_ids.push(user_id);
+    // Add user to organization
+    organization.user_ids.push(user._id);
     await organization.save();
+
+    // Populate user details in response
+    await organization.populate([
+      { path: "user_ids", select: "name email user_id -_id" },
+      { path: "admin_ids", select: "name email user_id -_id" },
+    ]);
 
     res.json({
       message: "User added successfully",
