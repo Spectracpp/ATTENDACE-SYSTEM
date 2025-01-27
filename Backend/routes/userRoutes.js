@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
+const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const auth = require("../middleware/auth");
 
 // Create a new user
 router.post("/create", async (req, res) => {
@@ -37,6 +39,13 @@ router.post("/create", async (req, res) => {
 
     await user.save();
 
+    // Generate token
+    const token = jwt.sign(
+      { id: user._id, type: "user" },
+      process.env.JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
     // Remove password from response
     const userResponse = user.toObject();
     delete userResponse.password;
@@ -44,10 +53,83 @@ router.post("/create", async (req, res) => {
     res.status(201).json({
       message: "User created successfully",
       user: userResponse,
+      token,
     });
   } catch (error) {
     res.status(500).json({
       message: "Error creating user",
+      error: error.message,
+    });
+  }
+});
+
+// Login user
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    // Check password
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    // Generate token
+    const token = jwt.sign(
+      { id: user._id, type: "user" },
+      process.env.JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
+    // Remove password from response
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    res.json({
+      message: "Login successful",
+      user: userResponse,
+      token,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error during login",
+      error: error.message,
+    });
+  }
+});
+
+// Get user profile (protected route)
+router.get("/profile", auth, async (req, res) => {
+  try {
+    if (req.userType !== "user") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const userResponse = req.user.toObject();
+    delete userResponse.password;
+
+    res.json(userResponse);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching profile",
+      error: error.message,
+    });
+  }
+});
+
+// Logout user
+router.post("/logout", auth, (req, res) => {
+  try {
+    res.json({ message: "Logged out successfully" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error during logout",
       error: error.message,
     });
   }

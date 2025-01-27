@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
+const jwt = require("jsonwebtoken");
 const Admin = require("../models/Admin");
+const auth = require("../middleware/auth");
 
 // Create a new admin
 router.post("/create", async (req, res) => {
@@ -35,6 +37,13 @@ router.post("/create", async (req, res) => {
 
     await admin.save();
 
+    // Generate token
+    const token = jwt.sign(
+      { id: admin._id, type: "admin" },
+      process.env.JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
     // Remove password from response
     const adminResponse = admin.toObject();
     delete adminResponse.password;
@@ -42,10 +51,83 @@ router.post("/create", async (req, res) => {
     res.status(201).json({
       message: "Admin created successfully",
       admin: adminResponse,
+      token,
     });
   } catch (error) {
     res.status(500).json({
       message: "Error creating admin",
+      error: error.message,
+    });
+  }
+});
+
+// Login admin
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Find admin by email
+    const admin = await Admin.findOne({ email });
+    if (!admin) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    // Check password
+    const isMatch = await admin.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    // Generate token
+    const token = jwt.sign(
+      { id: admin._id, type: "admin" },
+      process.env.JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
+    // Remove password from response
+    const adminResponse = admin.toObject();
+    delete adminResponse.password;
+
+    res.json({
+      message: "Login successful",
+      admin: adminResponse,
+      token,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error during login",
+      error: error.message,
+    });
+  }
+});
+
+// Get admin profile (protected route)
+router.get("/profile", auth, async (req, res) => {
+  try {
+    if (req.userType !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const adminResponse = req.user.toObject();
+    delete adminResponse.password;
+
+    res.json(adminResponse);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching profile",
+      error: error.message,
+    });
+  }
+});
+
+// Logout admin
+router.post("/logout", auth, (req, res) => {
+  try {
+    res.json({ message: "Logged out successfully" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error during logout",
       error: error.message,
     });
   }
