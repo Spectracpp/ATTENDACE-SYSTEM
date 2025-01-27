@@ -1,8 +1,8 @@
 const express = require("express");
 const router = express.Router();
-const Attendance = require("../models/Attendance");
-const Organization = require("../models/Organization");
-const User = require("../models/User");
+const Attendance = require("../models/Attendance.js");
+const Organization = require("../models/Organization.js");
+const User = require("../models/User.js");
 const auth = require("../middleware/auth");
 
 // Get user's attendance history

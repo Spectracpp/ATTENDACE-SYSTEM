@@ -60,6 +60,7 @@ router.post("/generate", auth, async (req, res) => {
         message: "Retrieved existing QR code for today",
         qrCode: qrCode,
         qrImage: qrImage,
+        qrData: JSON.stringify(qrData),
       });
     }
 
@@ -89,6 +90,7 @@ router.post("/generate", auth, async (req, res) => {
       message: "QR code generated successfully",
       qrCode: qrCode,
       qrImage: qrImage,
+      qrData: JSON.stringify(qrData),
     });
   } catch (error) {
     res.status(500).json({
@@ -105,8 +107,17 @@ router.post("/scan", auth, async (req, res) => {
       return res.status(403).json({ message: "Only admins can scan QR codes" });
     }
 
-    const { qrData } = req.body;
-    const data = JSON.parse(qrData);
+    let data;
+    try {
+      const { qrData } = req.body;
+      // Always expect qrData to be a string that needs parsing
+      data = JSON.parse(qrData);
+    } catch (error) {
+      return res.status(400).json({
+        message: "Invalid QR data format",
+        error: "QR data must be a valid JSON string",
+      });
+    }
 
     // Validate QR code
     const qrCode = await QRCode.findById(data.id);

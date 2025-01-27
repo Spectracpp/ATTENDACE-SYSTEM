@@ -274,14 +274,15 @@
               "script": {
                 "exec": [
                   "if (pm.response.code === 200) {",
-                  "    pm.environment.set(\"qrData\", pm.response.json().qrCode._id);",
+                  "    const qrData = pm.response.json().qrData;",
+                  "    pm.environment.set(\"qrData\", qrData);",
                   "    const qrImage = pm.response.json().qrImage;",
-                  "    // Display QR code image in the visualizer",
                   "    if (qrImage) {",
                   "        pm.visualizer.set(`",
                   "            <div style='text-align: center;'>",
                   "                <h3>Generated QR Code</h3>",
                   "                <img src='${qrImage}' style='max-width: 300px;' />",
+                  "                <p>QR Data: ${qrData}</p>",
                   "            </div>",
                   "        `);",
                   "    }",
@@ -314,6 +315,19 @@
         },
         {
           "name": "Scan QR Code",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Ensure QR data is properly formatted as a JSON string",
+                  "const qrData = pm.environment.get(\"qrData\");",
+                  "pm.environment.set(\"formattedQrData\", qrData);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -324,7 +338,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"qrData\": \"{{qrData}}\"\n}"
+              "raw": "{\n    \"qrData\": \"{{formattedQrData}}\"\n}"
             },
             "url": {
               "raw": "http://localhost:5000/api/qr/scan",
