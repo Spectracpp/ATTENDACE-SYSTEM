@@ -29,10 +29,14 @@ app.use(express.urlencoded({ extended: true }));
 // Import routes
 const userRoutes = require("./routes/userRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const qrRoutes = require("./routes/qrRoutes");
+const organizationRoutes = require("./routes/organizationRoutes");
 
 // Use routes
 app.use("/api/users", userRoutes);
 app.use("/api/admins", adminRoutes);
+app.use("/api/qr", qrRoutes);
+app.use("/api/organizations", organizationRoutes);
 
 // Basic route
 app.get("/", (req, res) => {
