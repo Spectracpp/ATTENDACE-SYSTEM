@@ -4,6 +4,14 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const auth = require("../middleware/auth");
 
+// Cookie options
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "strict",
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
+
 // Create a new user
 router.post("/create", async (req, res) => {
   try {
@@ -43,8 +51,11 @@ router.post("/create", async (req, res) => {
     const token = jwt.sign(
       { id: user._id, type: "user" },
       process.env.JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "7d" }
     );
+
+    // Set cookie
+    res.cookie("token", token, cookieOptions);
 
     // Remove password from response
     const userResponse = user.toObject();
@@ -53,7 +64,6 @@ router.post("/create", async (req, res) => {
     res.status(201).json({
       message: "User created successfully",
       user: userResponse,
-      token,
     });
   } catch (error) {
     res.status(500).json({
@@ -84,8 +94,11 @@ router.post("/login", async (req, res) => {
     const token = jwt.sign(
       { id: user._id, type: "user" },
       process.env.JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "7d" }
     );
+
+    // Set cookie
+    res.cookie("token", token, cookieOptions);
 
     // Remove password from response
     const userResponse = user.toObject();
@@ -94,7 +107,6 @@ router.post("/login", async (req, res) => {
     res.json({
       message: "Login successful",
       user: userResponse,
-      token,
     });
   } catch (error) {
     res.status(500).json({
@@ -126,6 +138,8 @@ router.get("/profile", auth, async (req, res) => {
 // Logout user
 router.post("/logout", auth, (req, res) => {
   try {
+    // Clear the cookie
+    res.clearCookie("token");
     res.json({ message: "Logged out successfully" });
   } catch (error) {
     res.status(500).json({

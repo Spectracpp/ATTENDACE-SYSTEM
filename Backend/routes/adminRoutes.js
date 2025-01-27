@@ -4,6 +4,14 @@ const jwt = require("jsonwebtoken");
 const Admin = require("../models/Admin");
 const auth = require("../middleware/auth");
 
+// Cookie options
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "strict",
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
+
 // Create a new admin
 router.post("/create", async (req, res) => {
   try {
@@ -41,8 +49,11 @@ router.post("/create", async (req, res) => {
     const token = jwt.sign(
       { id: admin._id, type: "admin" },
       process.env.JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "7d" }
     );
+
+    // Set cookie
+    res.cookie("token", token, cookieOptions);
 
     // Remove password from response
     const adminResponse = admin.toObject();
@@ -51,7 +62,6 @@ router.post("/create", async (req, res) => {
     res.status(201).json({
       message: "Admin created successfully",
       admin: adminResponse,
-      token,
     });
   } catch (error) {
     res.status(500).json({
@@ -82,8 +92,11 @@ router.post("/login", async (req, res) => {
     const token = jwt.sign(
       { id: admin._id, type: "admin" },
       process.env.JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "7d" }
     );
+
+    // Set cookie
+    res.cookie("token", token, cookieOptions);
 
     // Remove password from response
     const adminResponse = admin.toObject();
@@ -92,7 +105,6 @@ router.post("/login", async (req, res) => {
     res.json({
       message: "Login successful",
       admin: adminResponse,
-      token,
     });
   } catch (error) {
     res.status(500).json({
@@ -124,6 +136,8 @@ router.get("/profile", auth, async (req, res) => {
 // Logout admin
 router.post("/logout", auth, (req, res) => {
   try {
+    // Clear the cookie
+    res.clearCookie("token");
     res.json({ message: "Logged out successfully" });
   } catch (error) {
     res.status(500).json({
