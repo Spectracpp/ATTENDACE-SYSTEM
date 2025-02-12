@@ -4,6 +4,19 @@ const Organization = require("../models/Organization");
 const User = require("../models/User");
 const auth = require("../middleware/auth");
 
+// Get all organizations (Public endpoint for registration)
+router.get("/list", async (req, res) => {
+  try {
+    const organizations = await Organization.find({}, 'name uid');
+    res.json(organizations);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error fetching organizations",
+      error: error.message,
+    });
+  }
+});
+
 // Create organization (Admin only)
 router.post("/create", auth, async (req, res) => {
   try {
@@ -186,17 +199,12 @@ router.get("/", auth, async (req, res) => {
   try {
     let organizations;
     if (req.userType === "admin") {
-      organizations = await Organization.find({ admin_ids: req.user._id })
-        .populate("admin_ids", "name email -_id")
-        .populate("user_ids", "name email -_id")
-        .populate("created_by", "name email -_id");
+      // Admin can see all organizations
+      organizations = await Organization.find();
     } else {
-      organizations = await Organization.find({ user_ids: req.user._id })
-        .populate("admin_ids", "name email -_id")
-        .populate("user_ids", "name email -_id")
-        .populate("created_by", "name email -_id");
+      // Regular user can only see their organizations
+      organizations = await Organization.find({ user_ids: req.user._id });
     }
-
     res.json(organizations);
   } catch (error) {
     res.status(500).json({

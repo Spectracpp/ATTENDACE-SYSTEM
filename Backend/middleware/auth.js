@@ -1,34 +1,40 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-const Admin = require("../models/Admin");
 
 const auth = async (req, res, next) => {
   try {
-    const token = req.cookies.token;
-
-    if (!token) {
-      return res.status(401).json({ message: "Authentication required" });
+    // Get token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: "No token provided" });
     }
 
+    const token = authHeader.split(' ')[1];
+    
+    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    let user = null;
-
-    if (decoded.type === "user") {
-      user = await User.findOne({ _id: decoded.id });
-    } else if (decoded.type === "admin") {
-      user = await Admin.findOne({ _id: decoded.id });
+    if (!decoded._id) {
+      throw new Error('Invalid token');
     }
 
+    // Find user
+    const user = await User.findById(decoded._id);
     if (!user) {
-      throw new Error();
+      throw new Error('User not found');
     }
 
-    req.token = token;
+    // Attach user to request
     req.user = user;
-    req.userType = decoded.type;
     next();
   } catch (error) {
-    res.status(401).json({ message: "Please authenticate" });
+    console.error('Auth error:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: "Token expired" });
+    }
+    res.status(401).json({ message: "Authentication failed" });
   }
 };
 

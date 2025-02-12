@@ -4,201 +4,249 @@ const QRCode = require("../models/QRCode");
 const Organization = require("../models/Organization");
 const Attendance = require("../models/Attendance");
 const auth = require("../middleware/auth");
+const { qrGenerationLimiter } = require("../middleware/rateLimiter");
+const { validateQrGeneration, validateQrScan } = require("../utils/validation");
 const qr = require("qrcode");
 
 // Generate QR Code (User only)
-router.post("/generate", auth, async (req, res) => {
+router.post("/generate", auth, qrGenerationLimiter, async (req, res) => {
+  console.log('QR Generate request received:', {
+    body: req.body,
+    user: req.user
+  });
+
   try {
-    if (req.userType !== "user") {
-      return res
-        .status(403)
-        .json({ message: "Only users can generate QR codes" });
-    }
+    const { user_id, organisation_uid } = req.body;
 
-    const { organisation_uid, roll_no } = req.body;
-
-    // Validate organization and user membership
-    const organization = await Organization.findOne({ uid: organisation_uid });
-    if (!organization) {
-      return res.status(404).json({ message: "Organization not found" });
-    }
-
-    if (!organization.user_ids.includes(req.user._id)) {
-      return res
-        .status(403)
-        .json({ message: "User does not belong to this organization" });
-    }
-
-    // Get today's date (start of day)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Check if QR code already exists for today
-    let qrCode = await QRCode.findOne({
-      organisation_uid,
-      roll_no,
-      created_by: req.user._id,
-      attendance_date: {
-        $gte: today,
-        $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
-      },
-    });
-
-    if (qrCode) {
-      // Return existing QR code
-      const qrData = {
-        id: qrCode._id,
-        organisation_uid,
-        roll_no,
-        attendance_date: qrCode.attendance_date,
-        present: qrCode.present,
-      };
-
-      const qrImage = await qr.toDataURL(JSON.stringify(qrData));
-
-      return res.json({
-        message: "Retrieved existing QR code for today",
-        qrCode: qrCode,
-        qrImage: qrImage,
-        qrData: JSON.stringify(qrData),
+    if (!user_id || !organisation_uid) {
+      console.log('Missing required fields:', req.body);
+      return res.status(400).json({ 
+        message: "Missing required fields", 
+        required: ["user_id", "organisation_uid"],
+        received: req.body 
       });
     }
 
-    // Create new QR code entry
-    qrCode = new QRCode({
-      organisation_uid,
-      roll_no,
-      attendance_date: today,
-      created_by: req.user._id,
-    });
+    // Find or create organization
+    let organization = await Organization.findOne({ uid: organisation_uid });
+    
+    if (!organization) {
+      console.log('Creating default organization:', organisation_uid);
+      organization = new Organization({
+        uid: organisation_uid,
+        name: "Default Organization",
+        user_ids: [req.user._id], // Add current user
+        admin_ids: [req.user._id] // Make current user an admin
+      });
+      await organization.save();
+      console.log('Organization created:', organization);
+    } else if (!organization.user_ids.includes(req.user._id)) {
+      console.log('Adding user to organization:', req.user._id);
+      organization.user_ids.push(req.user._id);
+      await organization.save();
+      console.log('User added to organization');
+    }
 
-    await qrCode.save();
-
-    // Generate QR code data
+    // Generate a unique QR code data
     const qrData = {
-      id: qrCode._id,
+      user_id,
       organisation_uid,
-      roll_no,
-      attendance_date: qrCode.attendance_date,
-      present: qrCode.present,
+      timestamp: new Date().toISOString(),
+      nonce: Math.random().toString(36).substring(7)
     };
 
-    // Generate QR code image
-    const qrImage = await qr.toDataURL(JSON.stringify(qrData));
+    // Convert QR data to string
+    const qrString = JSON.stringify(qrData);
+    console.log('Generated QR data:', qrString);
 
+    // Generate QR code as base64
+    const qrImage = await qr.toDataURL(qrString);
+    console.log('QR image generated, length:', qrImage.length);
+
+    // Remove the data:image/png;base64, prefix
+    const base64Image = qrImage.split(',')[1];
+
+    // Save QR code to database
+    const newQRCode = new QRCode({
+      user_id,
+      organisation_uid,
+      created_by: req.user._id,
+      qr_data: qrString,
+      expiry: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
+    });
+
+    await newQRCode.save();
+    console.log('QR code saved to database:', newQRCode._id);
+
+    // Send response with base64 image
     res.json({
       message: "QR code generated successfully",
-      qrCode: qrCode,
-      qrImage: qrImage,
-      qrData: JSON.stringify(qrData),
+      qrImage: base64Image,
+      expiry: newQRCode.expiry
     });
+
   } catch (error) {
-    res.status(500).json({
-      message: "Error generating QR code",
-      error: error.message,
-    });
+    console.error("QR Generation error:", error);
+    res.status(500).json({ message: "Error generating QR code", error: error.message });
   }
 });
 
 // Scan QR Code (Admin only)
-router.post("/scan", auth, async (req, res) => {
+router.post("/scan", auth, validateQrScan, async (req, res) => {
+  console.log('QR Scan request received:', {
+    body: req.body,
+    user: req.user
+  });
+
   try {
     if (req.userType !== "admin") {
+      console.log('User is not an admin:', req.userType);
       return res.status(403).json({ message: "Only admins can scan QR codes" });
     }
 
-    let data;
-    try {
-      const { qrData } = req.body;
-      // Always expect qrData to be a string that needs parsing
-      data = JSON.parse(qrData);
-    } catch (error) {
-      return res.status(400).json({
-        message: "Invalid QR data format",
-        error: "QR data must be a valid JSON string",
-      });
+    const { qrData } = req.body;
+
+    if (!qrData) {
+      console.log('Missing QR code data:', req.body);
+      return res.status(400).json({ message: "QR code data is required" });
     }
 
-    // Validate QR code
-    const qrCode = await QRCode.findById(data.id);
+    let parsedData;
+    try {
+      parsedData = JSON.parse(qrData);
+    } catch (error) {
+      console.log('Invalid QR code format:', qrData);
+      return res.status(400).json({ message: "Invalid QR code format" });
+    }
+
+    const { code, user_id, organisation_uid } = parsedData;
+
+    // Find the QR code
+    const qrCode = await QRCode.findById(code);
     if (!qrCode) {
+      console.log('QR code not found:', code);
       return res.status(404).json({ message: "QR code not found" });
     }
 
-    // Validate organization and admin membership
-    const organization = await Organization.findOne({
-      uid: qrCode.organisation_uid,
-    });
-    if (!organization) {
-      return res.status(404).json({ message: "Organization not found" });
+    // Verify QR code belongs to the user and organization
+    if (qrCode.user_id !== user_id || qrCode.organisation_uid !== organisation_uid) {
+      console.log('Invalid QR code data:', {
+        qrCode: qrCode.user_id,
+        user_id: user_id,
+        organisation_uid: organisation_uid
+      });
+      return res.status(400).json({ message: "Invalid QR code data" });
     }
 
-    if (!organization.admin_ids.includes(req.user._id)) {
-      return res
-        .status(403)
-        .json({ message: "Admin does not belong to this organization" });
+    // Check if QR code has expired (2 hours)
+    const now = new Date();
+    const qrCreationTime = new Date(qrCode.createdAt);
+    if (now - qrCreationTime > 2 * 60 * 60 * 1000) {
+      console.log('QR code has expired:', qrCode.createdAt);
+      return res.status(400).json({ message: "QR code has expired" });
     }
 
-    // Check if QR code is for today
-    const qrDate = new Date(qrCode.attendance_date).setHours(0, 0, 0, 0);
-    const today = new Date().setHours(0, 0, 0, 0);
-
-    if (qrDate !== today) {
-      return res
-        .status(400)
-        .json({ message: "QR code is not valid for today" });
+    // Check if already marked present
+    if (qrCode.present) {
+      console.log('Attendance already marked:', qrCode.present);
+      return res.status(400).json({ message: "Attendance already marked" });
     }
 
-    // Update QR code status
+    // Mark attendance
     qrCode.present = true;
     qrCode.scanned_by = req.user._id;
-    qrCode.scanned_at = new Date();
-
     await qrCode.save();
+    console.log('Attendance marked:', qrCode._id);
 
-    // Create or update attendance record
-    const attendance = await Attendance.findOneAndUpdate(
-      {
-        organisation_uid: qrCode.organisation_uid,
-        user_id: qrCode.created_by,
-        date: new Date(qrCode.attendance_date),
-      },
-      {
-        $set: {
-          status: "present",
-          qr_code: qrCode._id,
-          marked_by: req.user._id,
-          marked_at: new Date(),
-          roll_no: qrCode.roll_no,
-        },
-      },
-      {
-        new: true,
-        upsert: true,
-      }
-    );
-
-    res.json({
-      message: "Attendance marked successfully",
-      qrCode,
-      attendance,
+    // Create attendance record
+    const attendance = new Attendance({
+      user_id,
+      organisation_uid,
+      qr_code: qrCode._id,
+      marked_by: req.user._id,
     });
+    await attendance.save();
+    console.log('Attendance record created:', attendance._id);
+
+    res.json({ message: "Attendance marked successfully" });
   } catch (error) {
-    res.status(500).json({
+    console.error('QR Scan error:', error);
+    res.status(500).json({ 
       message: "Error scanning QR code",
-      error: error.message,
+      error: error.message 
     });
+  }
+});
+
+// Get attendance statistics (Admin only)
+router.get("/stats/:organisation_uid", auth, async (req, res) => {
+  console.log('Get attendance statistics request received:', {
+    params: req.params,
+    user: req.user
+  });
+
+  try {
+    if (req.userType !== "admin") {
+      console.log('User is not an admin:', req.userType);
+      return res.status(403).json({ message: "Only admins can view statistics" });
+    }
+
+    const { organisation_uid } = req.params;
+    const { startDate, endDate } = req.query;
+
+    const query = {
+      organisation_uid,
+      attendance_date: {}
+    };
+
+    if (startDate) {
+      query.attendance_date.$gte = new Date(startDate);
+    }
+    if (endDate) {
+      query.attendance_date.$lte = new Date(endDate);
+    }
+
+    const stats = await QRCode.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: "$user_id",
+          totalDays: { $count: {} },
+          presentDays: {
+            $sum: { $cond: ["$present", 1, 0] }
+          },
+          fullDays: {
+            $sum: { $cond: [{ $eq: ["$attendance_type", "full"] }, 1, 0] }
+          },
+          halfDays: {
+            $sum: { $cond: [{ $eq: ["$attendance_type", "half"] }, 1, 0] }
+          }
+        }
+      }
+    ]);
+
+    console.log('Attendance statistics:', stats);
+    res.json(stats);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Error fetching statistics" });
   }
 });
 
 // Get QR Code details
 router.get("/:id", auth, async (req, res) => {
+  console.log('Get QR Code details request received:', {
+    params: req.params,
+    user: req.user
+  });
+
   try {
     const qrCode = await QRCode.findById(req.params.id)
       .populate("scanned_by", "name email -_id")
       .populate("created_by", "name email -_id");
 
     if (!qrCode) {
+      console.log('QR code not found:', req.params.id);
       return res.status(404).json({ message: "QR code not found" });
     }
 
@@ -207,6 +255,7 @@ router.get("/:id", auth, async (req, res) => {
       uid: qrCode.organisation_uid,
     });
     if (!organization) {
+      console.log('Organization not found:', qrCode.organisation_uid);
       return res.status(404).json({ message: "Organization not found" });
     }
 
@@ -215,11 +264,14 @@ router.get("/:id", auth, async (req, res) => {
       organization.user_ids.includes(req.user._id);
 
     if (!isMember) {
+      console.log('User is not a member of the organization:', req.user._id);
       return res.status(403).json({ message: "Access denied" });
     }
 
+    console.log('QR code details:', qrCode);
     res.json(qrCode);
   } catch (error) {
+    console.error(error);
     res.status(500).json({
       message: "Error fetching QR code",
       error: error.message,
@@ -229,9 +281,15 @@ router.get("/:id", auth, async (req, res) => {
 
 // Get all QR codes for an organisation
 router.get("/organisation/:uid", auth, async (req, res) => {
+  console.log('Get all QR codes for an organisation request received:', {
+    params: req.params,
+    user: req.user
+  });
+
   try {
     const organization = await Organization.findOne({ uid: req.params.uid });
     if (!organization) {
+      console.log('Organization not found:', req.params.uid);
       return res.status(404).json({ message: "Organization not found" });
     }
 
@@ -240,6 +298,7 @@ router.get("/organisation/:uid", auth, async (req, res) => {
       organization.user_ids.includes(req.user._id);
 
     if (!isMember) {
+      console.log('User is not a member of the organization:', req.user._id);
       return res.status(403).json({ message: "Access denied" });
     }
 
@@ -248,8 +307,10 @@ router.get("/organisation/:uid", auth, async (req, res) => {
       .populate("created_by", "name email -_id")
       .sort({ attendance_date: -1, createdAt: -1 });
 
+    console.log('QR codes for organisation:', qrCodes);
     res.json(qrCodes);
   } catch (error) {
+    console.error(error);
     res.status(500).json({
       message: "Error fetching QR codes",
       error: error.message,

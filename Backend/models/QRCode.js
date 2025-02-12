@@ -5,14 +5,16 @@ const qrCodeSchema = new mongoose.Schema(
     organisation_uid: {
       type: String,
       required: true,
-      ref: "Organization",
-      field: "uid",
     },
-    roll_no: {
+    user_id: {
       type: String,
       required: true,
     },
-    attendance_date: {
+    qr_data: {
+      type: String,
+      required: true,
+    },
+    expiry: {
       type: Date,
       required: true,
     },
@@ -21,29 +23,32 @@ const qrCodeSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    present: {
-      type: Boolean,
-      default: false,
-    },
     scanned_by: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Admin",
       default: null,
     },
-    scanned_at: {
+    scan_time: {
       type: Date,
       default: null,
-    },
+    }
   },
   {
     timestamps: true,
+    toJSON: {
+      transform(doc, ret) {
+        delete ret.__v;
+        return ret;
+      },
+    },
   }
 );
 
-// Create a compound unique index on organisation_uid, roll_no, and attendance_date
-qrCodeSchema.index(
-  { organisation_uid: 1, roll_no: 1, attendance_date: 1 },
-  { unique: true }
-);
+// Create indexes for performance
+qrCodeSchema.index({ organisation_uid: 1, user_id: 1 });
+qrCodeSchema.index({ qr_data: 1 });
+qrCodeSchema.index({ expiry: 1 }, { expireAfterSeconds: 0 }); // Auto-delete expired documents
 
-module.exports = mongoose.model("QRCode", qrCodeSchema);
+const QRCode = mongoose.model("QRCode", qrCodeSchema);
+
+module.exports = QRCode;

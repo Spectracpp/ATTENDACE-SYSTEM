@@ -43,29 +43,34 @@ router.post("/create", async (req, res) => {
       password,
       tokens: 0,
       streak: 0,
+      role: 'user' // Set default role
     });
 
     await user.save();
 
     // Generate token
     const token = jwt.sign(
-      { id: user._id, type: "user" },
+      { _id: user._id.toString(), role: 'user' },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      {
+        expiresIn: "7d",
+      }
     );
-
-    // Set cookie
-    res.cookie("token", token, cookieOptions);
-
-    // Remove password from response
-    const userResponse = user.toObject();
-    delete userResponse.password;
 
     res.status(201).json({
       message: "User created successfully",
-      user: userResponse,
+      user: {
+        _id: user._id,
+        user_id: user.user_id,
+        name: user.name,
+        email: user.email,
+        organisation_uid: user.organisation_uid,
+        role: 'user'
+      },
+      token,
     });
   } catch (error) {
+    console.error("Registration error:", error);
     res.status(500).json({
       message: "Error creating user",
       error: error.message,
@@ -75,43 +80,69 @@ router.post("/create", async (req, res) => {
 
 // Login user
 router.post("/login", async (req, res) => {
+  console.log('Login attempt:', {
+    email: req.body.email,
+    hasPassword: !!req.body.password
+  });
+
   try {
     const { email, password } = req.body;
+
+    if (!email || !password) {
+      console.log('Missing credentials:', { email: !!email, password: !!password });
+      return res.status(400).json({ message: "Email and password are required" });
+    }
 
     // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
+      console.log('User not found:', email);
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    console.log('User found:', {
+      id: user._id,
+      email: user.email,
+      hasPassword: !!user.password
+    });
+
     // Check password
     const isMatch = await user.comparePassword(password);
+    console.log('Password check result:', isMatch);
+
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
     // Generate token
     const token = jwt.sign(
-      { id: user._id, type: "user" },
+      { _id: user._id.toString(), role: 'user' },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      {
+        expiresIn: "7d",
+      }
     );
 
-    // Set cookie
-    res.cookie("token", token, cookieOptions);
+    console.log('Login successful, sending response');
 
-    // Remove password from response
-    const userResponse = user.toObject();
-    delete userResponse.password;
-
+    // Send response
     res.json({
       message: "Login successful",
-      user: userResponse,
+      user: {
+        _id: user._id,
+        user_id: user.user_id,
+        name: user.name,
+        email: user.email,
+        organisation_uid: user.organisation_uid,
+        role: 'user'
+      },
+      token,
     });
   } catch (error) {
+    console.error("Login error:", error);
     res.status(500).json({
       message: "Error during login",
-      error: error.message,
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -132,6 +163,27 @@ router.get("/profile", auth, async (req, res) => {
       message: "Error fetching profile",
       error: error.message,
     });
+  }
+});
+
+// Get current user
+router.get("/me", auth, async (req, res) => {
+  try {
+    // User is already attached to req by auth middleware
+    const user = req.user;
+    res.json({ 
+      user: {
+        _id: user._id,
+        user_id: user.user_id,
+        name: user.name,
+        email: user.email,
+        organisation_uid: user.organisation_uid,
+        role: user.role
+      }
+    });
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({ message: "Error fetching user data" });
   }
 });
 
