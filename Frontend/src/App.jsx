@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext.jsx';
 import { Box, CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 
@@ -9,6 +9,7 @@ import Register from './pages/auth/Register.jsx';
 
 // User Pages
 import QRGenerator from './pages/user/QRGenerator.jsx';
+import Dashboard from './pages/user/Dashboard.jsx';
 
 // Admin Pages
 import QRScanner from './pages/admin/QRScanner.jsx';
@@ -85,8 +86,9 @@ function App() {
       <CssBaseline />
       <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
         <Routes>
+          <Route path="/user/dashboard" element={<Dashboard />} />
           <Route path="/user" element={<QRGenerator />} />
-          <Route path="*" element={<Navigate to="/user" replace />} />
+          <Route path="*" element={<Navigate to="/user/dashboard" replace />} />
         </Routes>
       </Box>
     </ThemeProvider>
