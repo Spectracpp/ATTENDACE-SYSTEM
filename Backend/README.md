@@ -1,21 +1,23 @@
-# User and Admin Management API
+# QR Code Attendance System API
 
-A Node.js backend API for managing users and administrators with different data models and JWT authentication.
+A secure and scalable Node.js backend API for managing attendance using QR codes, with role-based access control and organization management.
 
 ## Features
 
-- User management with tokens and streak tracking
-- Admin management
-- JWT-based authentication
-- Password encryption with bcrypt
-- Protected routes
-- MongoDB database integration
-- Express.js REST API
+- Secure QR code generation with expiration
+- Role-based access control (user, admin, super_admin)
+- Organization-specific permissions
+- Location-based attendance verification
+- Advanced attendance tracking and statistics
+- JWT-based authentication with security features
+- MongoDB database with optimized schemas
+- Express.js REST API with validation
 
 ## Prerequisites
 
 - Node.js (v14 or higher)
 - MongoDB (local or cloud instance)
+- NPM or Yarn package manager
 
 ## Installation
 
@@ -28,7 +30,7 @@ npm install
 
 3. Create a `.env` file in the root directory with:
 
-```
+```env
 MONGODB_URI=your_mongodb_connection_string
 PORT=5000 # optional, defaults to 5000
 JWT_SECRET=your-jwt-secret-key
@@ -50,108 +52,196 @@ npm start
 
 ## API Endpoints
 
-### User Routes
+### Authentication
 
-#### Authentication
+#### User Registration and Login
 
-- **POST** `/api/users/create` - Register a new user
-
+- **POST** `/api/auth/register` - Register a new user
   ```json
   {
-    "user_id": "12345",
-    "name": "John Doe",
-    "organisation_uid": "org123",
-    "email": "john@example.com",
-    "password": "password123"
+    "email": "user@example.com",
+    "password": "SecurePass123!",
+    "firstName": "John",
+    "lastName": "Doe"
   }
   ```
 
-- **POST** `/api/users/login` - Login user
-
+- **POST** `/api/auth/login` - Login user
   ```json
   {
-    "email": "john@example.com",
-    "password": "password123"
+    "email": "user@example.com",
+    "password": "SecurePass123!"
   }
   ```
 
-- **POST** `/api/users/logout` - Logout user (Protected)
-  - Requires Authorization header: `Bearer <token>`
+### Organization Management
 
-#### User Profile
+#### Create and Manage Organizations
 
-- **GET** `/api/users/profile` - Get user profile (Protected)
-  - Requires Authorization header: `Bearer <token>`
-
-### Admin Routes
-
-#### Authentication
-
-- **POST** `/api/admins/create` - Register a new admin
-
+- **POST** `/api/organizations` - Create new organization (Admin)
   ```json
   {
-    "user_id": "admin123",
-    "name": "Admin User",
-    "organisation_uid": "org123",
-    "email": "admin@example.com",
-    "password": "password123"
+    "name": "Example Corp",
+    "code": "EX-CORP",
+    "type": "business",
+    "settings": {
+      "qrCodeExpiry": 5,
+      "allowMultipleScans": false,
+      "requireLocation": true
+    }
   }
   ```
 
-- **POST** `/api/admins/login` - Login admin
+- **GET** `/api/organizations/:id` - Get organization details
+- **PUT** `/api/organizations/:id` - Update organization settings
+- **GET** `/api/organizations/:id/members` - List organization members
 
+### QR Code Management
+
+#### Generate and Manage QR Sessions
+
+- **POST** `/api/qr/generate` - Generate new QR session (Admin)
   ```json
   {
-    "email": "admin@example.com",
-    "password": "password123"
+    "organization": "org_id",
+    "type": "attendance",
+    "location": {
+      "name": "Main Office",
+      "coordinates": {
+        "latitude": 37.7749,
+        "longitude": -122.4194
+      },
+      "radius": 100
+    },
+    "metadata": {
+      "eventName": "Daily Attendance",
+      "description": "Regular office hours"
+    }
   }
   ```
 
-- **POST** `/api/admins/logout` - Logout admin (Protected)
-  - Requires Authorization header: `Bearer <token>`
+- **POST** `/api/qr/scan` - Scan QR code and mark attendance
+  ```json
+  {
+    "sessionId": "session_id",
+    "location": {
+      "coordinates": {
+        "latitude": 37.7749,
+        "longitude": -122.4194
+      }
+    }
+  }
+  ```
 
-#### Admin Profile
+#### View QR Sessions and Statistics
 
-- **GET** `/api/admins/profile` - Get admin profile (Protected)
-  - Requires Authorization header: `Bearer <token>`
+- **GET** `/api/qr/sessions` - List QR sessions (Admin)
+  - Query params: `status`, `type`, `page`, `limit`
 
-## Authentication
+- **GET** `/api/qr/stats` - Get attendance statistics (Admin)
+  - Query params: `startDate`, `endDate`
 
-The API uses JWT (JSON Web Tokens) for authentication. Protected routes require a valid JWT token in the Authorization header:
+### Attendance Management
 
-```
-Authorization: Bearer <your-token>
-```
+#### View and Manage Attendance
 
-Tokens are provided upon successful registration and login. They expire after 24 hours.
+- **GET** `/api/attendance` - List attendance records
+  - Query params: `startDate`, `endDate`, `status`
+
+- **POST** `/api/attendance/:id/excuse` - Mark attendance as excused
+  ```json
+  {
+    "reason": "Doctor's appointment",
+    "attachments": [{
+      "type": "document",
+      "url": "https://example.com/doc.pdf"
+    }]
+  }
+  ```
+
+## Security Features
+
+### Authentication and Authorization
+- JWT-based authentication with refresh tokens
+- Role-based access control (RBAC)
+- Organization-specific permissions
+- Account locking after failed attempts
+- Password strength requirements
+
+### QR Code Security
+- Time-based expiration
+- Unique session IDs
+- Location verification
+- Single-use scanning (configurable)
+- Device tracking
+
+### Data Protection
+- Password encryption using bcrypt
+- Secure password reset flow
+- Rate limiting on sensitive endpoints
+- Input validation and sanitization
+- CORS protection
 
 ## Database Models
 
 ### User Model
+- Email and password authentication
+- Role-based permissions
+- Organization memberships
+- Account status and security features
+- Login tracking
 
-- user_id (String, unique)
-- name (String)
-- organisation_uid (String)
-- email (String, unique)
-- password (String, encrypted)
-- tokens (Number)
-- streak (Number)
+### Organization Model
+- Hierarchical structure
+- Configurable settings
+- Location management
+- Subscription handling
 
-### Admin Model
+### QR Session Model
+- Time-based expiration
+- Location validation
+- Multiple session types
+- Usage statistics
+- Security settings
 
-- user_id (String, unique)
-- name (String)
-- organisation_uid (String)
-- email (String, unique)
-- password (String, encrypted)
+### Attendance Model
+- Multiple status types
+- Location tracking
+- Device information
+- Supporting documentation
+- Statistical aggregation
 
-## Security Features
+## Error Handling
 
-- Password encryption using bcrypt
-- JWT-based authentication
-- Protected routes
-- Secure password handling (never returned in responses)
-- Token expiration (24 hours)
-- Environment variable configuration
-- CORS enabled
+The API uses standard HTTP status codes and returns detailed error messages:
+
+```json
+{
+  "message": "Error description",
+  "errors": [
+    {
+      "field": "email",
+      "message": "Invalid email format"
+    }
+  ]
+}
+```
+
+## Rate Limiting
+
+To prevent abuse, the API implements rate limiting:
+- QR Generation: 60 requests per hour per organization
+- Authentication: 5 failed attempts before temporary lockout
+- General API: 1000 requests per hour per IP
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

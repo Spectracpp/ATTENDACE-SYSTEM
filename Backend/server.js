@@ -3,11 +3,28 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
 const cookieParser = require("cookie-parser");
+const rateLimit = require('express-rate-limit');
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
+
+// Apply rate limiting to all routes
+app.use(limiter);
+
+// Stricter rate limits for auth routes
+const authLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // limit each IP to 5 failed requests per hour
+  skipSuccessfulRequests: true // don't count successful requests
+});
 
 // Middleware
 app.use(express.json());
@@ -59,6 +76,11 @@ const adminRoutes = require("./routes/adminRoutes");
 const qrRoutes = require("./routes/qrRoutes");
 const organizationRoutes = require("./routes/organizationRoutes");
 const scannerRoutes = require("./routes/scannerRoutes");
+const sessionRoutes = require("./routes/sessionRoutes");
+
+// Apply auth rate limiting to login and register routes
+app.use('/api/users/login', authLimiter);
+app.use('/api/users/register', authLimiter);
 
 // Serve static files
 app.use(express.static('public'));
@@ -69,6 +91,7 @@ app.use("/api/admins", adminRoutes);
 app.use("/api/qr", qrRoutes);
 app.use("/api/organizations", organizationRoutes);
 app.use("/admin", scannerRoutes);
+app.use("/api/sessions", sessionRoutes);
 
 // Basic route
 app.get("/", (req, res) => {
