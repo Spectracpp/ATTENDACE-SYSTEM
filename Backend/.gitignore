@@ -22,4 +22,10 @@ pids
 .idea/
 
 # Misc
-.DS_Store 
+.DS_Store
+
+# Tests
+/tests
+/coverage
+*.test.js
+*.spec.js
