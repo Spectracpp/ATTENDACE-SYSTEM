@@ -218,6 +218,220 @@ Response:
 }
 ```
 
+## 5. Organization-User Management
+
+### Add User to Organization
+```http
+POST /organizations/:orgId/users
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+
+{
+    "email": "user@example.com",
+    "role": "teacher",  // Options: admin, teacher, student, employee
+    "department": "Computer Science",
+    "employeeId": "EMP123"  // Optional
+}
+
+Response:
+{
+    "message": "User invited to organization",
+    "invitation": {
+        "id": "inv_123",
+        "email": "user@example.com",
+        "organization": "org_id",
+        "role": "teacher",
+        "status": "pending"
+    }
+}
+```
+
+### Accept Organization Invitation
+```http
+POST /organizations/invitations/:invitationId/accept
+Authorization: Bearer <user_token>
+
+Response:
+{
+    "message": "Invitation accepted",
+    "organization": {
+        "id": "org_id",
+        "name": "Organization Name",
+        "role": "teacher"
+    }
+}
+```
+
+### Set Primary Organization
+```http
+PUT /users/primary-organization
+Authorization: Bearer <user_token>
+Content-Type: application/json
+
+{
+    "organizationId": "org_id"
+}
+
+Response:
+{
+    "message": "Primary organization updated",
+    "primaryOrganization": {
+        "id": "org_id",
+        "name": "Organization Name"
+    }
+}
+```
+
+### Get User's Organizations
+```http
+GET /users/organizations
+Authorization: Bearer <user_token>
+
+Response:
+{
+    "organizations": [
+        {
+            "id": "org_id",
+            "name": "Organization Name",
+            "role": "teacher",
+            "status": "active",
+            "department": "Computer Science",
+            "employeeId": "EMP123",
+            "joinedAt": "2025-02-14T00:22:16Z"
+        }
+    ],
+    "primaryOrganization": {
+        "id": "org_id",
+        "name": "Organization Name"
+    }
+}
+```
+
+### Update User's Organization Role
+```http
+PUT /organizations/:orgId/users/:userId/role
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+
+{
+    "role": "admin",
+    "department": "IT",  // Optional
+    "employeeId": "EMP124"  // Optional
+}
+
+Response:
+{
+    "message": "User role updated",
+    "user": {
+        "id": "user_id",
+        "email": "user@example.com",
+        "role": "admin",
+        "department": "IT",
+        "employeeId": "EMP124"
+    }
+}
+```
+
+### Remove User from Organization
+```http
+DELETE /organizations/:orgId/users/:userId
+Authorization: Bearer <admin_token>
+
+Response:
+{
+    "message": "User removed from organization"
+}
+```
+
+### Get Organization Members
+```http
+GET /organizations/:orgId/users
+Authorization: Bearer <admin_token>
+Query Parameters:
+- role (optional): Filter by role
+- department (optional): Filter by department
+- status (optional): Filter by status
+- search (optional): Search by name or email
+
+Response:
+{
+    "total": 100,
+    "members": [
+        {
+            "id": "user_id",
+            "firstName": "John",
+            "lastName": "Doe",
+            "email": "john@example.com",
+            "role": "teacher",
+            "department": "Computer Science",
+            "employeeId": "EMP123",
+            "status": "active",
+            "joinedAt": "2025-02-14T00:22:16Z"
+        }
+    ]
+}
+```
+
+## 6. Email Notifications
+
+The system sends automated emails for various organization-related events:
+
+### Invitation Email
+- Sent when a user is invited to an organization
+- Contains invitation token and acceptance link
+- Expires after 7 days
+
+### Welcome Email
+- Sent after accepting organization invitation
+- Contains role-specific information and next steps
+- Links to dashboard and support
+
+## 7. Organization Authorization
+
+### Middleware Functions
+
+1. **belongsToOrganization**
+```javascript
+// Checks if user is a member of the organization
+app.use('/api/organizations/:orgId/*', belongsToOrganization);
+```
+
+2. **hasRole**
+```javascript
+// Checks if user has specific role(s)
+app.use('/api/sessions', hasRole(['admin', 'teacher']));
+```
+
+3. **isAdmin**
+```javascript
+// Checks if user is an organization admin
+app.use('/api/organizations/:orgId/settings', isAdmin);
+```
+
+4. **canMarkAttendance**
+```javascript
+// Checks if user can mark attendance
+app.use('/api/attendance/mark', canMarkAttendance);
+```
+
+5. **canManageSessions**
+```javascript
+// Checks if user can manage sessions
+app.use('/api/sessions/create', canManageSessions);
+```
+
+### Role Permissions Matrix
+
+| Permission                  | Admin | Teacher | Student | Employee |
+|----------------------------|-------|---------|---------|----------|
+| Create Organization        | ✓     | ✗       | ✗       | ✗        |
+| Invite Members             | ✓     | ✗       | ✗       | ✗        |
+| Create Sessions            | ✓     | ✓       | ✗       | ✗        |
+| Mark Attendance            | ✗     | ✗       | ✓       | ✓        |
+| View Reports               | ✓     | ✓       | ✗       | ✗        |
+| Manage Settings           | ✓     | ✗       | ✗       | ✗        |
+| View Own Attendance        | ✗     | ✗       | ✓       | ✓        |
+
 ## Important Notes for Frontend Implementation
 
 1. **QR Code Handling**:
@@ -252,6 +466,31 @@ Response:
    - Don't store sensitive data in localStorage
    - Implement token refresh mechanism
 
+## Important Notes for Organization Management
+
+1. **Role Hierarchy**:
+   - `admin`: Full organization management access
+   - `teacher`: Can create sessions and manage attendance
+   - `student`: Can only mark their own attendance
+   - `employee`: Similar to student role
+
+2. **Organization Status**:
+   - `active`: User can access organization features
+   - `inactive`: User access is temporarily suspended
+   - `pending`: Waiting for user to accept invitation
+
+3. **Security Considerations**:
+   - Only organization admins can invite new users
+   - Users must verify email before joining organization
+   - Users can belong to multiple organizations with different roles
+   - Primary organization is used as default context
+
+4. **Best Practices**:
+   - Always check user's role and status before operations
+   - Use department field for better organization
+   - Keep employee IDs unique within organization
+   - Handle invitation expiry appropriately
+
 ## Environment Variables Needed
 ```
 REACT_APP_API_URL=http://localhost:5000/api
@@ -268,3 +507,67 @@ REACT_APP_QR_REFRESH_INTERVAL=30000
 - 404: Not Found
 - 422: Validation Error
 - 500: Server Error
+
+## Environment Variables
+
+```env
+# Email Configuration
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_smtp_user
+SMTP_PASS=your_smtp_password
+EMAIL_FROM_NAME=QR Attendance System
+EMAIL_FROM_ADDRESS=noreply@qrattendance.com
+SUPPORT_EMAIL=support@qrattendance.com
+
+# Frontend URL
+FRONTEND_URL=http://localhost:3000
+
+# Organization Settings
+DEFAULT_QR_EXPIRY=300
+DEFAULT_LOCATION_RADIUS=100
+MAX_MEMBERS_PER_ORG=1000
+MAX_SESSIONS_PER_DAY=50
+```
+
+## Error Codes
+
+### Organization-specific Error Codes
+```json
+{
+    "ORG_001": "Organization not found",
+    "ORG_002": "Invalid invitation token",
+    "ORG_003": "Invitation expired",
+    "ORG_004": "Member limit exceeded",
+    "ORG_005": "Invalid role assignment",
+    "ORG_006": "Duplicate organization code",
+    "ORG_007": "Invalid organization settings"
+}
+```
+
+## Best Practices
+
+1. **Organization Management**
+   - Use unique organization codes
+   - Implement role-based access control
+   - Regular cleanup of expired invitations
+   - Audit important actions
+
+2. **Email Notifications**
+   - Use templates for consistency
+   - Include clear call-to-action
+   - Proper error handling
+   - Rate limiting for invitations
+
+3. **Security**
+   - Validate organization membership
+   - Check role permissions
+   - Secure invitation tokens
+   - Prevent privilege escalation
+
+4. **Performance**
+   - Cache organization settings
+   - Batch member updates
+   - Optimize member queries
+   - Use indexes effectively

@@ -11,7 +11,9 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
+    required: function() {
+      return !this.socialProvider; // Password only required if not using social login
+    },
     minlength: 8
   },
   firstName: {
@@ -32,18 +34,36 @@ const userSchema = new mongoose.Schema({
   organizations: [{
     organization: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Organization'
+      ref: 'Organization',
+      required: true
     },
     role: {
       type: String,
-      enum: ['member', 'admin'],
-      default: 'member'
+      enum: ['admin', 'teacher', 'student', 'employee'],
+      required: true
+    },
+    status: {
+      type: String,
+      enum: ['active', 'inactive', 'pending'],
+      default: 'pending'
     },
     joinedAt: {
       type: Date,
       default: Date.now
+    },
+    department: {
+      type: String,
+      trim: true
+    },
+    employeeId: {
+      type: String,
+      trim: true
     }
   }],
+  primaryOrganization: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization'
+  },
   status: {
     type: String,
     enum: ['active', 'inactive', 'suspended'],
@@ -70,7 +90,26 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  lockUntil: Date
+  lockUntil: Date,
+  socialProvider: {
+    type: String,
+    enum: ['google', 'github', 'microsoft', null],
+    default: null
+  },
+  socialId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  socialProfile: {
+    type: Map,
+    of: String,
+    default: {}
+  },
+  avatar: {
+    type: String,
+    trim: true
+  }
 }, {
   timestamps: true
 });
