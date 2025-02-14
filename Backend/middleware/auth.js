@@ -39,7 +39,11 @@ const auth = async (req, res, next) => {
 
     // Find user and check status
     const user = await User.findById(decoded._id)
-      .select('+failedLoginAttempts +lockUntil');
+      .select('+failedLoginAttempts +lockUntil')
+      .populate({
+        path: 'organizations.organization',
+        select: 'name code type status'
+      });
     
     if (!user) {
       throw new Error('User not found');
@@ -100,29 +104,32 @@ const authorize = (...roles) => {
 // Organization-based authorization middleware
 const authorizeOrg = (roleInOrg) => {
   return async (req, res, next) => {
-    const { organization_id } = req.params;
+    const { organizationId } = req.params;
     
-    const userOrg = req.user.organizations.find(
-      org => org.organization.toString() === organization_id
+    // Find user's role in the organization
+    const orgMembership = req.user.organizations.find(
+      org => org.organization._id.toString() === organizationId
     );
 
-    if (!userOrg || (roleInOrg && userOrg.role !== roleInOrg)) {
-      return res.status(403).json({ 
-        message: "You don't have permission for this organization" 
+    if (!orgMembership || !roleInOrg.includes(orgMembership.role)) {
+      return res.status(403).json({
+        message: "You don't have the required role in this organization"
       });
     }
+
+    req.organization = orgMembership.organization;
     next();
   };
 };
 
 // Rate limiting helper
 const incrementFailedAttempts = async (userId) => {
-  const user = await User.findById(userId).select('+failedLoginAttempts +lockUntil');
+  const user = await User.findById(userId)
+    .select('+failedLoginAttempts +lockUntil');
+  
   if (!user) return;
 
   user.failedLoginAttempts += 1;
-  
-  // Lock account after 5 failed attempts
   if (user.failedLoginAttempts >= 5) {
     user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
   }

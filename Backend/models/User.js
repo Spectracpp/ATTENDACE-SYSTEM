@@ -52,6 +52,18 @@ const userSchema = new mongoose.Schema({
   lastLogin: {
     type: Date
   },
+  tokens: [{
+    token: {
+      type: String,
+      required: true
+    }
+  }],
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailVerificationToken: String,
+  emailVerificationExpires: Date,
   passwordResetToken: String,
   passwordResetExpires: Date,
   failedLoginAttempts: {
@@ -84,6 +96,26 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 // Check if account is locked
 userSchema.methods.isLocked = function() {
   return !!(this.lockUntil && this.lockUntil > Date.now());
+};
+
+// Hide sensitive data when converting to JSON
+userSchema.methods.toJSON = function() {
+  const obj = this.toObject();
+  
+  // Ensure _id is included
+  obj._id = obj._id.toString();
+  
+  // Remove sensitive fields
+  delete obj.password;
+  delete obj.tokens;
+  delete obj.emailVerificationToken;
+  delete obj.emailVerificationExpires;
+  delete obj.passwordResetToken;
+  delete obj.passwordResetExpires;
+  delete obj.failedLoginAttempts;
+  delete obj.lockUntil;
+  
+  return obj;
 };
 
 module.exports = mongoose.model('User', userSchema);

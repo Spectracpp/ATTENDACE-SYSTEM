@@ -5,7 +5,22 @@ const QRCode = require('qrcode');
 const { auth, authorize } = require('../middleware/auth');
 const Session = require('../models/Session');
 const Attendance = require('../models/Attendance');
-const { sessionValidation } = require('../middleware/validate');
+const { body } = require('express-validator');
+
+// Session validation middleware
+const sessionValidation = {
+  create: [
+    body('name').notEmpty().trim(),
+    body('type').notEmpty().trim(),
+    body('description').optional().trim(),
+    body('organization').notEmpty(),
+    body('date').isDate(),
+    body('startTime').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+    body('endTime').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+    body('location.latitude').isFloat({ min: -90, max: 90 }),
+    body('location.longitude').isFloat({ min: -180, max: 180 })
+  ]
+};
 
 /**
  * @route POST /api/sessions
@@ -21,31 +36,34 @@ router.post('/',
       const {
         name,
         type,
-        location,
+        description,
+        date,
         startTime,
         endTime,
-        settings
+        organization,
+        location
       } = req.body;
 
       // Generate QR code secret
       const secret = crypto.randomBytes(32).toString('hex');
 
       const session = new Session({
-        organization: req.user.organization,
+        organization,
         createdBy: req.user._id,
         name,
         type,
+        description,
+        date,
+        startTime,
+        endTime,
         location: {
           type: 'Point',
           coordinates: [location.longitude, location.latitude],
           radius: location.radius || 100
         },
-        startTime: new Date(startTime),
-        endTime: new Date(endTime),
-        settings,
         qrCode: {
           secret,
-          refreshInterval: settings?.qrRefreshInterval || 30
+          refreshInterval: 30
         }
       });
 
@@ -67,111 +85,125 @@ router.post('/',
 });
 
 /**
- * @route GET /api/sessions/:id/qr
- * @desc Get current QR code for session
- * @access Private (Admin)
- */
-router.get('/:id/qr',
-  auth,
-  authorize('admin'),
-  async (req, res) => {
-    try {
-      const session = await Session.findOne({
-        _id: req.params.id,
-        organization: req.user.organization
-      });
-
-      if (!session) {
-        return res.status(404).json({ message: 'Session not found' });
-      }
-
-      if (session.status === 'ended' || session.status === 'cancelled') {
-        return res.status(400).json({ message: 'Session has ended' });
-      }
-
-      const qrData = session.generateQRData();
-      const qrCode = await QRCode.toDataURL(qrData);
-
-      res.json({ qrCode });
-    } catch (error) {
-      console.error('Get QR code error:', error);
-      res.status(500).json({ message: 'Error generating QR code' });
-    }
-});
-
-/**
  * @route POST /api/sessions/:id/mark-attendance
- * @desc Mark attendance for a session
+ * @desc Mark attendance using QR code or location
  * @access Private
  */
 router.post('/:id/mark-attendance',
   auth,
-  sessionValidation.markAttendance,
   async (req, res) => {
     try {
-      const { location, device } = req.body;
-      const session = await Session.findOne({
-        _id: req.params.id,
-        organization: req.user.organization
-      });
-
+      const session = await Session.findById(req.params.id);
       if (!session) {
         return res.status(404).json({ message: 'Session not found' });
       }
 
-      if (!session.isActive()) {
-        return res.status(400).json({ message: 'Session is not active' });
-      }
-
-      // Validate location if required
-      if (session.settings.requireLocation && location) {
-        const isValidLocation = session.validateLocation(
-          location.latitude,
-          location.longitude
-        );
-
-        if (!isValidLocation) {
-          return res.status(400).json({ message: 'Location is out of range' });
-        }
-      }
-
-      // Check for existing attendance
+      // Check if attendance already marked
       const existingAttendance = await Attendance.findOne({
         user: req.user._id,
-        session: session._id
+        session: session._id,
+        markedAt: {
+          $gte: new Date(new Date().setHours(0, 0, 0, 0)),
+          $lt: new Date(new Date().setHours(23, 59, 59, 999))
+        }
       });
 
       if (existingAttendance) {
-        return res.status(400).json({ message: 'Attendance already marked' });
+        return res.status(400).json({ message: 'Attendance already marked for today' });
       }
+
+      let verificationMethod = 'manual';
+      let isValid = false;
+
+      // Handle QR code verification
+      if (req.body.qrData) {
+        verificationMethod = 'qr';
+        const { sessionId, sessionCode, timestamp, signature } = JSON.parse(req.body.qrData);
+        
+        // Verify signature
+        const expectedSignature = crypto
+          .createHmac('sha256', process.env.JWT_SECRET)
+          .update(JSON.stringify({ sessionId, sessionCode, timestamp }))
+          .digest('hex');
+
+        if (signature !== expectedSignature) {
+          return res.status(400).json({ message: 'Invalid QR code' });
+        }
+
+        // Check if QR code is expired
+        if (Date.now() - timestamp > (parseInt(process.env.QR_CODE_REFRESH_INTERVAL) || 30) * 1000) {
+          return res.status(400).json({ message: 'QR code has expired' });
+        }
+
+        if (sessionId !== session.id || sessionCode !== session.sessionCode) {
+          return res.status(400).json({ message: 'Invalid session code' });
+        }
+
+        isValid = true;
+      }
+      // Handle location-based verification
+      else if (req.body.location) {
+        verificationMethod = 'geo';
+        const { latitude, longitude } = req.body.location;
+        isValid = session.validateLocation(latitude, longitude);
+        
+        if (!isValid) {
+          return res.status(400).json({ 
+            message: 'Location is outside the allowed radius',
+            allowedRadius: session.settings.locationRadius || 100
+          });
+        }
+      } else {
+        return res.status(400).json({ message: 'No verification method provided' });
+      }
+
+      if (!isValid) {
+        return res.status(400).json({ message: 'Attendance verification failed' });
+      }
+
+      // Get user's device info
+      const device = {
+        type: req.headers['user-agent']?.includes('Mobile') ? 'mobile' : 'desktop',
+        userAgent: req.headers['user-agent'],
+        ip: req.ip
+      };
 
       // Create attendance record
       const attendance = new Attendance({
         user: req.user._id,
         session: session._id,
         organization: session.organization,
-        location: {
+        status: 'present',
+        location: req.body.location ? {
           type: 'Point',
-          coordinates: [location.longitude, location.latitude]
-        },
-        device: {
-          type: device.type,
-          userAgent: device.userAgent,
-          ip: req.ip,
-          deviceId: device.deviceId
-        }
+          coordinates: [req.body.location.longitude, req.body.location.latitude]
+        } : undefined,
+        device,
+        verificationMethod,
+        markedAt: new Date(),
+        verifiedBy: req.user._id
       });
 
-      // Update status based on time
-      attendance.updateStatus(session.startTime);
+      // Update status based on session time
+      const [hours, minutes] = session.startTime.split(':');
+      const sessionStartTime = new Date();
+      sessionStartTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      attendance.updateStatus(sessionStartTime);
+
       await attendance.save();
 
+      // Return attendance details
       res.json({
         message: 'Attendance marked successfully',
-        attendance
+        attendance: {
+          id: attendance._id,
+          status: attendance.status,
+          markedAt: attendance.markedAt,
+          verificationMethod: attendance.verificationMethod
+        }
       });
     } catch (error) {
-      console.error('Mark attendance error:', error);
+      console.error('Attendance marking error:', error);
       res.status(500).json({ message: 'Error marking attendance' });
     }
 });
@@ -186,45 +218,53 @@ router.get('/:id/attendance',
   authorize('admin'),
   async (req, res) => {
     try {
-      const session = await Session.findOne({
-        _id: req.params.id,
-        organization: req.user.organization
-      });
-
+      const { date } = req.query;
+      const session = await Session.findById(req.params.id);
+      
       if (!session) {
         return res.status(404).json({ message: 'Session not found' });
       }
 
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
+      // Build query
+      const query = {
+        session: session._id
+      };
 
-      const attendance = await Attendance
-        .find({ session: session._id })
+      // Add date filter if provided
+      if (date) {
+        const startDate = new Date(date);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(date);
+        endDate.setHours(23, 59, 59, 999);
+        
+        query.markedAt = {
+          $gte: startDate,
+          $lt: endDate
+        };
+      }
+
+      // Get attendance records with user details
+      const attendanceRecords = await Attendance
+        .find(query)
         .populate('user', 'firstName lastName email')
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .sort({ createdAt: -1 });
+        .sort({ markedAt: -1 });
 
-      const total = await Attendance.countDocuments({ session: session._id });
+      // Get statistics
+      const stats = await Attendance.getStatistics(session.organization, session._id);
 
       res.json({
-        attendance,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit)
-        }
+        attendance: attendanceRecords,
+        statistics: stats
       });
     } catch (error) {
       console.error('Get attendance error:', error);
-      res.status(500).json({ message: 'Error fetching attendance' });
+      res.status(500).json({ message: 'Error getting attendance records' });
     }
 });
 
 /**
  * @route GET /api/sessions/:id/statistics
- * @desc Get attendance statistics for a session
+ * @desc Get session statistics
  * @access Private (Admin)
  */
 router.get('/:id/statistics',
@@ -232,24 +272,102 @@ router.get('/:id/statistics',
   authorize('admin'),
   async (req, res) => {
     try {
-      const session = await Session.findOne({
-        _id: req.params.id,
-        organization: req.user.organization
-      });
-
+      const session = await Session.findById(req.params.id);
       if (!session) {
         return res.status(404).json({ message: 'Session not found' });
       }
 
-      const statistics = await Attendance.getStatistics(
-        session.organization,
-        session._id
-      );
+      const statistics = await Attendance.aggregate([
+        {
+          $match: {
+            session: session._id
+          }
+        },
+        {
+          $group: {
+            _id: '$status',
+            count: { $sum: 1 }
+          }
+        }
+      ]);
 
-      res.json({ statistics });
+      const formattedStats = {
+        present: 0,
+        late: 0,
+        absent: 0
+      };
+
+      statistics.forEach(stat => {
+        formattedStats[stat._id] = stat.count;
+      });
+
+      res.json({ statistics: formattedStats });
     } catch (error) {
       console.error('Get statistics error:', error);
-      res.status(500).json({ message: 'Error fetching statistics' });
+      res.status(500).json({ message: 'Error getting statistics' });
+    }
+});
+
+/**
+ * @route GET /api/sessions/:id/qr
+ * @desc Get QR code for a session
+ * @access Private
+ */
+router.get('/:id/qr',
+  auth,
+  async (req, res) => {
+    try {
+      const session = await Session.findById(req.params.id);
+      
+      if (!session) {
+        return res.status(404).json({ message: 'Session not found' });
+      }
+
+      // Check if user has access to this session
+      if (session.organization) {
+        const userOrg = req.user.organizations.find(
+          org => org.organization.toString() === session.organization.toString()
+        );
+        
+        if (!userOrg) {
+          return res.status(403).json({ message: 'Access denied' });
+        }
+      }
+
+      // Generate fresh QR code data
+      const qrData = {
+        sessionId: session._id,
+        sessionCode: session.sessionCode,
+        timestamp: Date.now(),
+        expiresIn: parseInt(process.env.QR_CODE_REFRESH_INTERVAL) || 30, // seconds
+        location: session.location,
+        radius: parseInt(process.env.DEFAULT_LOCATION_RADIUS) || 100 // meters
+      };
+
+      // Sign the QR data
+      const signature = crypto
+        .createHmac('sha256', process.env.JWT_SECRET)
+        .update(JSON.stringify(qrData))
+        .digest('hex');
+
+      qrData.signature = signature;
+
+      // Generate QR code
+      const qrCodeImage = await QRCode.toDataURL(JSON.stringify(qrData), {
+        errorCorrectionLevel: 'H',
+        margin: 2,
+        width: 400
+      });
+
+      res.json({
+        sessionCode: session.sessionCode,
+        qrCode: qrCodeImage,
+        expiresIn: qrData.expiresIn,
+        refreshInterval: parseInt(process.env.QR_CODE_REFRESH_INTERVAL) || 30
+      });
+    } catch (error) {
+      console.error('QR code generation error:', error);
+      res.status(500).json({ message: 'Error generating QR code' });
     }
 });
 

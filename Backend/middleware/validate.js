@@ -78,6 +78,7 @@ const sessionValidation = {
   create: [
     body('name').trim().notEmpty(),
     body('type').isIn(['regular', 'event', 'meeting']),
+    body('organization').isMongoId(),
     body('location').isObject(),
     body('location.latitude').isFloat({ min: -90, max: 90 }),
     body('location.longitude').isFloat({ min: -180, max: 180 }),

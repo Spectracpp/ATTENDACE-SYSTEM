@@ -11,7 +11,8 @@ const organizationSchema = new mongoose.Schema({
     required: true,
     unique: true,
     uppercase: true,
-    trim: true
+    trim: true,
+    index: true
   },
   description: {
     type: String,
@@ -22,6 +23,35 @@ const organizationSchema = new mongoose.Schema({
     enum: ['business', 'education', 'government', 'non-profit'],
     required: true
   },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  admins: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    role: {
+      type: String,
+      enum: ['owner', 'admin'],
+      required: true
+    }
+  }],
+  members: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    role: {
+      type: String,
+      enum: ['member'],
+      required: true
+    }
+  }],
   settings: {
     qrCodeExpiry: {
       type: Number,
@@ -85,9 +115,10 @@ const organizationSchema = new mongoose.Schema({
 });
 
 // Indexes for better query performance
-organizationSchema.index({ code: 1 });
 organizationSchema.index({ status: 1 });
 organizationSchema.index({ 'subscription.plan': 1 });
+organizationSchema.index({ 'admins.user': 1 });
+organizationSchema.index({ 'members.user': 1 });
 
 // Virtual for getting active users count
 organizationSchema.virtual('activeUsersCount', {
