@@ -1,5 +1,6 @@
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
+const connectDB = require('./config/db');
 
 // Load environment variables
 dotenv.config();
@@ -7,15 +8,7 @@ dotenv.config();
 const app = require('./app');
 
 // Connect to MongoDB
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => {
-    console.log('Connected to MongoDB');
-  })
-  .catch((err) => {
-    console.error('MongoDB connection error:', err);
-    process.exit(1);
-  });
+connectDB();
 
 // Handle MongoDB connection events
 mongoose.connection.on('error', (err) => {
@@ -24,18 +17,6 @@ mongoose.connection.on('error', (err) => {
 
 mongoose.connection.on('disconnected', () => {
   console.log('MongoDB disconnected');
-});
-
-// Handle application shutdown
-process.on('SIGINT', async () => {
-  try {
-    await mongoose.connection.close();
-    console.log('MongoDB connection closed through app termination');
-    process.exit(0);
-  } catch (err) {
-    console.error('Error during app shutdown:', err);
-    process.exit(1);
-  }
 });
 
 // Start server
@@ -51,6 +32,18 @@ process.on('unhandledRejection', (err) => {
   server.close(() => {
     process.exit(1);
   });
+});
+
+// Handle application shutdown
+process.on('SIGINT', async () => {
+  try {
+    await mongoose.connection.close();
+    console.log('MongoDB connection closed through app termination');
+    process.exit(0);
+  } catch (err) {
+    console.error('Error during app shutdown:', err);
+    process.exit(1);
+  }
 });
 
 module.exports = server;

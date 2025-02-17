@@ -13,10 +13,11 @@ const { rateLimiter } = require('../middleware/rateLimiter');
  */
 router.post('/register', rateLimiter, async (req, res) => {
   try {
-    const { name, email, password, employeeId, role, department, adminCode } = req.body;
+    const { name, email, password, phone, employeeId, role, department, adminCode } = req.body;
+    console.log('Registration attempt:', { email, role });
 
     // Validate input
-    if (!name || !email || !password || !employeeId) {
+    if (!name || !email || !password || !phone || !employeeId) {
       return res.status(400).json({
         success: false,
         message: 'Required fields are missing'
@@ -72,23 +73,24 @@ router.post('/register', rateLimiter, async (req, res) => {
       });
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
     // Create user
+    console.log('Creating user with password:', password);
     const user = new User({
       name,
       email: email.toLowerCase(),
-      password: hashedPassword,
+      password,
+      phone,
       employeeId,
       role: role || 'user',
-      ...(role === 'admin' && { department })
+      department,
+      isActive: true
     });
 
+    // Save user
     await user.save();
+    console.log('User saved with hashed password:', user.password);
 
-    // Create JWT token
+    // Generate token
     const token = jwt.sign(
       { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
@@ -105,6 +107,7 @@ router.post('/register', rateLimiter, async (req, res) => {
         email: user.email,
         role: user.role,
         employeeId: user.employeeId,
+        phone: user.phone,
         ...(user.role === 'admin' && { department: user.department })
       }
     });
@@ -138,7 +141,11 @@ router.post('/login', rateLimiter, async (req, res) => {
 
     // Find user
     const user = await User.findOne({ email: email.toLowerCase() });
-    console.log('User found:', user ? 'Yes' : 'No');
+    console.log('User found:', user ? {
+      email: user.email,
+      role: user.role,
+      id: user._id
+    } : 'No');
     
     if (!user) {
       console.log('No user found with email:', email);
@@ -167,8 +174,11 @@ router.post('/login', rateLimiter, async (req, res) => {
     }
     
     // Check password
+    console.log('Attempting password comparison');
     const isMatch = await bcrypt.compare(password, user.password);
     console.log('Password match:', isMatch ? 'Yes' : 'No');
+    console.log('Input password:', password);
+    console.log('Stored hashed password:', user.password);
     
     if (!isMatch) {
       return res.status(400).json({
@@ -199,6 +209,7 @@ router.post('/login', rateLimiter, async (req, res) => {
         email: user.email,
         role: user.role,
         employeeId: user.employeeId,
+        phone: user.phone,
         ...(user.role === 'admin' && { department: user.department }),
         lastLogin: user.lastLogin
       }
@@ -233,7 +244,8 @@ router.get('/verify', auth, async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        phone: user.phone
       }
     });
   } catch (error) {

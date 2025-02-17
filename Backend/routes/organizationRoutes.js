@@ -2,16 +2,18 @@ const express = require('express');
 const router = express.Router();
 const Organization = require('../models/Organization');
 const User = require('../models/User');
-const { auth, authorize } = require('../middleware/auth');
+const jwt = require('jsonwebtoken');
+const { auth, authorize, authorizeOrganization } = require('../middleware/auth');
 const { organizationValidation } = require('../middleware/validate');
 const { rateLimiter } = require('../middleware/rateLimiter');
 
 /**
  * @route GET /api/organizations
  * @desc Get all organizations (paginated)
- * @access Public
+ * @access Private
  */
 router.get('/',
+  auth,
   rateLimiter,
   async (req, res) => {
     try {
@@ -49,11 +51,10 @@ router.get('/',
 /**
  * @route POST /api/organizations
  * @desc Create a new organization
- * @access Private (Admin)
+ * @access Private
  */
 router.post('/',
   auth,
-  authorize('admin'),
   organizationValidation.create,
   async (req, res) => {
     try {
@@ -76,13 +77,18 @@ router.post('/',
         code,
         type,
         settings,
-        createdBy: req.user._id,
-        admins: [{ user: req.user._id, role: 'owner' }]
+        createdBy: req.user._id
+      });
+
+      // Add creator as owner
+      organization.members.push({
+        user: req.user._id,
+        role: 'owner'
       });
 
       await organization.save();
 
-      // Add organization to user's organizations
+      // Add organization to user's organizations with owner role
       await User.findByIdAndUpdate(req.user._id, {
         $push: {
           organizations: {
@@ -92,9 +98,21 @@ router.post('/',
         }
       });
 
+      // Get updated user data
+      const updatedUser = await User.findById(req.user._id)
+        .populate('organizations.organization', 'name code type status');
+
+      // Generate new token with updated permissions
+      const token = jwt.sign(
+        { userId: updatedUser._id, role: updatedUser.role },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
       res.status(201).json({
         message: 'Organization created successfully',
-        organization
+        organization,
+        token
       });
     } catch (error) {
       console.error('Create organization error:', error);
@@ -113,7 +131,6 @@ router.get('/:id',
     try {
       const organization = await Organization
         .findById(req.params.id)
-        .populate('admins.user', 'firstName lastName email')
         .populate('members.user', 'firstName lastName email');
 
       if (!organization) {
@@ -121,10 +138,7 @@ router.get('/:id',
       }
 
       // Check if user has access
-      const member = [...organization.admins, ...organization.members]
-        .find(m => m.user._id.toString() === req.user._id.toString());
-
-      if (!member) {
+      if (!organization.hasRole(req.user._id)) {
         return res.status(403).json({ message: 'Access denied' });
       }
 
@@ -153,14 +167,6 @@ router.put('/:id',
         return res.status(404).json({ message: 'Organization not found' });
       }
 
-      // Check if user is admin
-      const admin = organization.admins
-        .find(a => a.user.toString() === req.user._id.toString());
-
-      if (!admin) {
-        return res.status(403).json({ message: 'Access denied' });
-      }
-
       // Update fields
       if (name) organization.name = name;
       if (settings) organization.settings = { ...organization.settings, ...settings };
@@ -179,65 +185,61 @@ router.put('/:id',
 
 /**
  * @route POST /api/organizations/:id/members
- * @desc Add member to organization
- * @access Private (Admin)
+ * @desc Add a member to an organization
+ * @access Private (Organization Owner)
  */
 router.post('/:id/members',
   auth,
-  authorize('admin'),
   organizationValidation.addMember,
   async (req, res) => {
     try {
       const { email, role } = req.body;
-      const organization = await Organization.findById(req.params.id);
+      const organizationId = req.params.id;
 
+      // Get organization
+      const organization = await Organization.findById(organizationId);
       if (!organization) {
         return res.status(404).json({ message: 'Organization not found' });
       }
 
-      // Check if user is admin
-      const admin = organization.admins
-        .find(a => a.user.toString() === req.user._id.toString());
-
-      if (!admin) {
-        return res.status(403).json({ message: 'Access denied' });
+      // Check if user has permission
+      if (!organization.hasRole(req.user._id, 'owner')) {
+        return res.status(403).json({ message: 'Insufficient permissions' });
       }
 
       // Find user by email
-      const user = await User.findOne({ email: email.toLowerCase() });
+      const user = await User.findOne({ email });
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // Check if user is already a member
-      const existingMember = [...organization.admins, ...organization.members]
-        .find(m => m.user.toString() === user._id.toString());
-
-      if (existingMember) {
-        return res.status(400).json({ message: 'User is already a member' });
-      }
-
-      // Add member
-      organization.members.push({
-        user: user._id,
-        role
-      });
-
-      await organization.save();
+      // Add member to organization
+      await organization.addMember(user._id, role || 'member');
 
       // Add organization to user's organizations
       await User.findByIdAndUpdate(user._id, {
         $push: {
           organizations: {
-            organization: organization._id,
-            role
+            organization: organizationId,
+            role: role || 'member'
           }
         }
       });
 
-      res.json({
+      // Get updated user data
+      const updatedUser = await User.findById(user._id)
+        .populate('organizations.organization', 'name code type status');
+
+      // Generate new token for the added user
+      const token = jwt.sign(
+        { userId: updatedUser._id, role: updatedUser.role },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      res.json({ 
         message: 'Member added successfully',
-        organization
+        token
       });
     } catch (error) {
       console.error('Add member error:', error);
@@ -248,45 +250,52 @@ router.post('/:id/members',
 /**
  * @route DELETE /api/organizations/:id/members/:userId
  * @desc Remove member from organization
- * @access Private (Admin)
+ * @access Private (Organization Owner)
  */
 router.delete('/:id/members/:userId',
   auth,
-  authorize('admin'),
   async (req, res) => {
     try {
-      const organization = await Organization.findById(req.params.id);
+      const organizationId = req.params.id;
+      const userId = req.params.userId;
 
+      // Get organization
+      const organization = await Organization.findById(organizationId);
       if (!organization) {
         return res.status(404).json({ message: 'Organization not found' });
       }
 
-      // Check if user is admin
-      const admin = organization.admins
-        .find(a => a.user.toString() === req.user._id.toString());
-
-      if (!admin) {
-        return res.status(403).json({ message: 'Access denied' });
+      // Check if user has permission
+      if (!organization.hasRole(req.user._id, 'owner')) {
+        return res.status(403).json({ message: 'Insufficient permissions' });
       }
 
-      // Remove member
-      organization.members = organization.members
-        .filter(m => m.user.toString() !== req.params.userId);
-
-      await organization.save();
+      // Remove member from organization
+      await organization.removeMember(userId);
 
       // Remove organization from user's organizations
-      await User.findByIdAndUpdate(req.params.userId, {
+      await User.findByIdAndUpdate(userId, {
         $pull: {
           organizations: {
-            organization: organization._id
+            organization: organizationId
           }
         }
       });
 
-      res.json({
+      // Get updated user data
+      const updatedUser = await User.findById(userId)
+        .populate('organizations.organization', 'name code type status');
+
+      // Generate new token for the removed user
+      const token = jwt.sign(
+        { userId: updatedUser._id, role: updatedUser.role },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      res.json({ 
         message: 'Member removed successfully',
-        organization
+        token
       });
     } catch (error) {
       console.error('Remove member error:', error);
@@ -308,14 +317,6 @@ router.get('/:id/statistics',
 
       if (!organization) {
         return res.status(404).json({ message: 'Organization not found' });
-      }
-
-      // Check if user is admin
-      const admin = organization.admins
-        .find(a => a.user.toString() === req.user._id.toString());
-
-      if (!admin) {
-        return res.status(403).json({ message: 'Access denied' });
       }
 
       // Get statistics

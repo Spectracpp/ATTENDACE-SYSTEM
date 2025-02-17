@@ -42,7 +42,7 @@ const authorize = (...roles) => {
 const authorizeOrganization = (requiredRole = 'member') => {
   return async (req, res, next) => {
     try {
-      const organizationId = req.params.organizationId || req.body.organizationId;
+      const organizationId = req.params.id || req.params.organizationId;
       
       if (!organizationId) {
         return res.status(400).json({ message: 'Organization ID is required' });
@@ -54,6 +54,7 @@ const authorizeOrganization = (requiredRole = 'member') => {
 
       next();
     } catch (error) {
+      console.error('Organization authorization error:', error);
       res.status(500).json({ message: 'Error checking organization permissions' });
     }
   };

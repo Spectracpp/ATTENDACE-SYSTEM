@@ -48,12 +48,9 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const register = async ({ name, email, password, phone, employeeId }) => {
+  const register = async ({ name, email, password, phone, employeeId, role, adminCode, department }) => {
     try {
-      if (!name || !email || !password || !phone || !employeeId) {
-        throw new Error('All fields are required');
-      }
-
+      setError(null);
       const response = await fetch(`${apiUrl}/auth/register`, {
         method: 'POST',
         headers: {
@@ -64,7 +61,10 @@ export function AuthProvider({ children }) {
           email,
           password,
           phone,
-          employeeId
+          employeeId,
+          role,
+          adminCode,
+          department
         }),
       });
 
@@ -75,9 +75,9 @@ export function AuthProvider({ children }) {
       }
 
       return data;
-    } catch (error) {
-      console.error('Registration error:', error);
-      throw error;
+    } catch (err) {
+      setError(err.message);
+      throw err;
     }
   };
 

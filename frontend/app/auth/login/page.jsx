@@ -4,9 +4,10 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { FaEnvelope, FaLock, FaUserCircle } from 'react-icons/fa';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 export default function Login() {
   const router = useRouter();
@@ -34,9 +35,12 @@ export default function Login() {
 
     try {
       await login(formData.email, formData.password, formData.rememberMe);
+      toast.success('Login successful!');
       router.push('/dashboard');
     } catch (err) {
+      console.error('Login error:', err);
       setError(err.message || 'Login failed');
+      toast.error(err.message || 'Login failed');
     } finally {
       setLoading(false);
     }

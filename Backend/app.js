@@ -7,6 +7,8 @@ const cookieParser = require('cookie-parser');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/userRoutes');
+const organizationRoutes = require('./routes/organizationRoutes');
+const qrCodeRoutes = require('./routes/qrCodeRoutes');
 
 const app = express();
 
@@ -15,7 +17,7 @@ app.use(helmet());
 
 // Enable CORS
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+  origin: ['http://localhost:3000', process.env.FRONTEND_URL || 'http://localhost:3001'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -42,6 +44,8 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/organizations', organizationRoutes);
+app.use('/api/qr', qrCodeRoutes);
 
 // 404 handler
 app.use((req, res, next) => {

@@ -5,8 +5,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../../context/AuthContext';
-import { FaUser, FaEnvelope, FaLock, FaPhone, FaShieldAlt, FaBuilding, FaKey } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaLock, FaPhone, FaShieldAlt, FaBuilding, FaKey, FaIdCard } from 'react-icons/fa';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 export default function AdminRegister() {
   const router = useRouter();
@@ -17,8 +18,10 @@ export default function AdminRegister() {
     password: '',
     confirmPassword: '',
     phone: '',
+    employeeId: '',
     department: '',
-    registrationCode: ''
+    adminCode: '',
+    role: 'admin'
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -37,19 +40,17 @@ export default function AdminRegister() {
     setLoading(true);
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      toast.error('Passwords do not match');
       setLoading(false);
       return;
     }
 
     try {
-      await register({
-        ...formData,
-        role: 'admin'
-      });
+      await register(formData);
+      toast.success('Registration successful! Please log in.');
       router.push('/auth/login');
     } catch (err) {
-      setError(err.message || 'Registration failed');
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -87,7 +88,7 @@ export default function AdminRegister() {
               </h2>
               <p className="text-sm text-gray-400">
                 Already have an account?{' '}
-                <Link href="/auth/admin/login" className="font-medium text-primary-main hover:text-primary-hover transition-colors">
+                <Link href="/auth/login" className="font-medium text-primary-main hover:text-primary-hover transition-colors">
                   Sign in
                 </Link>
                 <span className="mx-2">|</span>
@@ -151,6 +152,76 @@ export default function AdminRegister() {
 
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaPhone className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
+                  </div>
+                  <input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    autoComplete="tel"
+                    required
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="form-input pl-10 bg-gray-800/50 border-gray-700 focus:border-primary-main focus:ring-primary-main/50 rounded-xl"
+                    placeholder="Phone number"
+                  />
+                </div>
+
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaIdCard className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
+                  </div>
+                  <input
+                    id="employeeId"
+                    name="employeeId"
+                    type="text"
+                    required
+                    value={formData.employeeId}
+                    onChange={handleChange}
+                    className="form-input pl-10 bg-gray-800/50 border-gray-700 focus:border-primary-main focus:ring-primary-main/50 rounded-xl"
+                    placeholder="Employee ID"
+                  />
+                </div>
+
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaBuilding className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
+                  </div>
+                  <select
+                    id="department"
+                    name="department"
+                    required
+                    value={formData.department}
+                    onChange={handleChange}
+                    className="form-input pl-10 bg-gray-800/50 border-gray-700 focus:border-primary-main focus:ring-primary-main/50 rounded-xl"
+                  >
+                    <option value="">Select Department</option>
+                    <option value="IT">IT</option>
+                    <option value="HR">HR</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Operations">Operations</option>
+                    <option value="Management">Management</option>
+                  </select>
+                </div>
+
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaKey className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
+                  </div>
+                  <input
+                    id="adminCode"
+                    name="adminCode"
+                    type="password"
+                    required
+                    value={formData.adminCode}
+                    onChange={handleChange}
+                    className="form-input pl-10 bg-gray-800/50 border-gray-700 focus:border-primary-main focus:ring-primary-main/50 rounded-xl"
+                    placeholder="Admin Registration Code"
+                  />
+                </div>
+
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <FaLock className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
                   </div>
                   <input
@@ -180,55 +251,6 @@ export default function AdminRegister() {
                     onChange={handleChange}
                     className="form-input pl-10 bg-gray-800/50 border-gray-700 focus:border-primary-main focus:ring-primary-main/50 rounded-xl"
                     placeholder="Confirm password"
-                  />
-                </div>
-
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaPhone className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
-                  </div>
-                  <input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    autoComplete="tel"
-                    required
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="form-input pl-10 bg-gray-800/50 border-gray-700 focus:border-primary-main focus:ring-primary-main/50 rounded-xl"
-                    placeholder="Phone number"
-                  />
-                </div>
-
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaBuilding className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
-                  </div>
-                  <input
-                    id="department"
-                    name="department"
-                    type="text"
-                    required
-                    value={formData.department}
-                    onChange={handleChange}
-                    className="form-input pl-10 bg-gray-800/50 border-gray-700 focus:border-primary-main focus:ring-primary-main/50 rounded-xl"
-                    placeholder="Department"
-                  />
-                </div>
-
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaKey className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
-                  </div>
-                  <input
-                    id="registrationCode"
-                    name="registrationCode"
-                    type="text"
-                    required
-                    value={formData.registrationCode}
-                    onChange={handleChange}
-                    className="form-input pl-10 bg-gray-800/50 border-gray-700 focus:border-primary-main focus:ring-primary-main/50 rounded-xl"
-                    placeholder="Admin registration code"
                   />
                 </div>
               </div>

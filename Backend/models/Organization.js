@@ -4,129 +4,140 @@ const organizationSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    unique: true
   },
   code: {
     type: String,
     required: true,
-    unique: true,
-    uppercase: true,
     trim: true,
-    index: true
+    unique: true
+  },
+  type: {
+    type: String,
+    required: true,
+    enum: ['business', 'education', 'government', 'non-profit', 'other']
   },
   description: {
     type: String,
     trim: true
   },
-  type: {
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number],
+      default: [0, 0]
+    }
+  },
+  address: {
     type: String,
-    enum: ['business', 'education', 'government', 'non-profit'],
-    required: true
+    trim: true
+  },
+  contactEmail: {
+    type: String,
+    trim: true,
+    lowercase: true
+  },
+  contactPhone: {
+    type: String,
+    trim: true
+  },
+  settings: {
+    maxQrScans: {
+      type: Number,
+      default: 100
+    },
+    allowMultipleScans: {
+      type: Boolean,
+      default: false
+    },
+    locationRadius: {
+      type: Number,
+      default: 100 // meters
+    }
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  admins: [{
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
-    },
-    role: {
-      type: String,
-      enum: ['owner', 'admin'],
-      required: true
-    }
-  }],
   members: [{
     user: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
+      ref: 'User'
     },
     role: {
       type: String,
-      enum: ['member'],
-      required: true
+      enum: ['member', 'admin', 'owner'],
+      default: 'member'
+    },
+    joinedAt: {
+      type: Date,
+      default: Date.now
     }
   }],
-  settings: {
-    qrCodeExpiry: {
-      type: Number,
-      default: 5, // minutes
-      min: 1,
-      max: 60
-    },
-    allowMultipleScans: {
-      type: Boolean,
-      default: false
-    },
-    requireLocation: {
-      type: Boolean,
-      default: false
-    },
-    attendanceWindow: {
-      start: {
-        type: String,
-        default: "09:00" // 24-hour format
-      },
-      end: {
-        type: String,
-        default: "17:00"
-      }
-    }
-  },
   status: {
     type: String,
     enum: ['active', 'inactive', 'suspended'],
     default: 'active'
-  },
-  locations: [{
-    name: {
-      type: String,
-      required: true
-    },
-    address: String,
-    coordinates: {
-      latitude: Number,
-      longitude: Number
-    },
-    radius: {
-      type: Number,
-      default: 100 // meters
-    }
-  }],
-  subscription: {
-    plan: {
-      type: String,
-      enum: ['free', 'basic', 'premium', 'enterprise'],
-      default: 'free'
-    },
-    expiresAt: Date,
-    maxUsers: {
-      type: Number,
-      default: 10
-    }
   }
 }, {
   timestamps: true
 });
 
-// Indexes for better query performance
-organizationSchema.index({ status: 1 });
-organizationSchema.index({ 'subscription.plan': 1 });
-organizationSchema.index({ 'admins.user': 1 });
-organizationSchema.index({ 'members.user': 1 });
+// Index for location-based queries
+organizationSchema.index({ location: '2dsphere' });
 
-// Virtual for getting active users count
-organizationSchema.virtual('activeUsersCount', {
-  ref: 'User',
-  localField: '_id',
-  foreignField: 'organizations.organization',
-  count: true,
-  match: { 'organizations.role': 'member', status: 'active' }
+// Method to check if a user has a specific role in the organization
+organizationSchema.methods.hasRole = function(userId, role) {
+  const member = this.members.find(m => m.user.toString() === userId.toString());
+  if (!member) return false;
+
+  const roleHierarchy = {
+    'member': 0,
+    'admin': 1,
+    'owner': 2
+  };
+
+  return roleHierarchy[member.role] >= roleHierarchy[role];
+};
+
+// Method to add a member
+organizationSchema.methods.addMember = async function(userId, role = 'member') {
+  if (!this.members.some(m => m.user.toString() === userId.toString())) {
+    this.members.push({ user: userId, role });
+    await this.save();
+  }
+};
+
+// Method to remove a member
+organizationSchema.methods.removeMember = async function(userId) {
+  this.members = this.members.filter(m => m.user.toString() !== userId.toString());
+  await this.save();
+};
+
+// Method to update member role
+organizationSchema.methods.updateMemberRole = async function(userId, newRole) {
+  const member = this.members.find(m => m.user.toString() === userId.toString());
+  if (member) {
+    member.role = newRole;
+    await this.save();
+  }
+};
+
+// Virtual for member count
+organizationSchema.virtual('memberCount').get(function() {
+  return this.members.length;
 });
 
-module.exports = mongoose.model('Organization', organizationSchema);
+// Ensure virtuals are included in JSON
+organizationSchema.set('toJSON', { virtuals: true });
+organizationSchema.set('toObject', { virtuals: true });
+
+const Organization = mongoose.model('Organization', organizationSchema);
+
+module.exports = Organization;

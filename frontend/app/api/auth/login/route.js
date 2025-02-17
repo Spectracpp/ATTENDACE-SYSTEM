@@ -6,7 +6,7 @@ export async function POST(request) {
     const { email, password, role } = body;
 
     // Make a request to your backend API
-    const response = await fetch('http://localhost:3001/auth/login', {
+    const response = await fetch('http://localhost:5000/api/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -14,15 +14,24 @@ export async function POST(request) {
       body: JSON.stringify({ email, password, role }),
     });
 
-    const data = await response.json();
-
+    // Check if response is ok before trying to parse JSON
     if (!response.ok) {
-      return NextResponse.json(
-        { message: data.message || 'Login failed' },
-        { status: response.status }
-      );
+      const errorText = await response.text();
+      try {
+        const errorData = JSON.parse(errorText);
+        return NextResponse.json(
+          { message: errorData.message || 'Login failed' },
+          { status: response.status }
+        );
+      } catch (e) {
+        return NextResponse.json(
+          { message: 'Login failed: ' + errorText },
+          { status: response.status }
+        );
+      }
     }
 
+    const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {
     console.error('Login error:', error);

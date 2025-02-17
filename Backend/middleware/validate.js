@@ -52,23 +52,48 @@ const userValidation = {
 // Organization validation rules
 const organizationValidation = {
   create: [
-    body('name').trim().notEmpty(),
+    body('name').trim().notEmpty()
+      .withMessage('Organization name is required')
+      .isLength({ min: 2, max: 100 })
+      .withMessage('Organization name must be between 2 and 100 characters'),
     body('code').trim().notEmpty()
-      .matches(/^[A-Z0-9-]{3,10}$/),
-    body('type').isIn(['business', 'education', 'government', 'non-profit']),
+      .withMessage('Organization code is required')
+      .isLength({ min: 2, max: 20 })
+      .withMessage('Organization code must be between 2 and 20 characters')
+      .matches(/^[A-Za-z0-9-_]+$/)
+      .withMessage('Organization code can only contain letters, numbers, hyphens and underscores'),
+    body('type').isIn(['business', 'education', 'government', 'non-profit', 'other'])
+      .withMessage('Invalid organization type'),
+    body('settings').optional().isObject()
+      .withMessage('Settings must be an object'),
+    body('settings.maxQrScans').optional().isInt({ min: 1 })
+      .withMessage('Maximum QR scans must be at least 1'),
+    body('settings.allowMultipleScans').optional().isBoolean()
+      .withMessage('Allow multiple scans must be a boolean'),
     handleValidation
   ],
   update: [
-    param('id').isMongoId(),
-    body('name').optional().trim().notEmpty(),
-    body('settings').optional().isObject(),
-    body('settings.qrCodeExpiry').optional().isInt({ min: 1, max: 60 }),
+    param('id').isMongoId()
+      .withMessage('Invalid organization ID'),
+    body('name').optional().trim().notEmpty()
+      .withMessage('Organization name cannot be empty')
+      .isLength({ min: 2, max: 100 })
+      .withMessage('Organization name must be between 2 and 100 characters'),
+    body('settings').optional().isObject()
+      .withMessage('Settings must be an object'),
+    body('settings.maxQrScans').optional().isInt({ min: 1 })
+      .withMessage('Maximum QR scans must be at least 1'),
+    body('settings.allowMultipleScans').optional().isBoolean()
+      .withMessage('Allow multiple scans must be a boolean'),
     handleValidation
   ],
   addMember: [
-    param('id').isMongoId(),
-    body('email').isEmail().normalizeEmail(),
-    body('role').isIn(['member', 'admin']),
+    param('id').isMongoId()
+      .withMessage('Invalid organization ID'),
+    body('email').isEmail().normalizeEmail()
+      .withMessage('Invalid email address'),
+    body('role').isIn(['member', 'admin'])
+      .withMessage('Invalid role. Must be either member or admin'),
     handleValidation
   ]
 };
@@ -148,10 +173,55 @@ const attendanceValidation = {
   ]
 };
 
+// QR Code validation rules
+const qrCodeValidation = {
+  generate: [
+    param('organizationId').isMongoId()
+      .withMessage('Invalid organization ID'),
+    body('type').isIn(['daily', 'event', 'temporary'])
+      .withMessage('Invalid QR code type'),
+    body('validityHours').isInt({ min: 1, max: 168 })
+      .withMessage('Validity hours must be between 1 and 168'),
+    body('location').optional().isObject()
+      .withMessage('Location must be an object'),
+    body('location.type').optional().equals('Point')
+      .withMessage('Location type must be Point'),
+    body('location.coordinates').optional().isArray({ min: 2, max: 2 })
+      .withMessage('Location coordinates must be an array of 2 numbers'),
+    body('location.coordinates.*').optional().isFloat()
+      .withMessage('Location coordinates must be numbers'),
+    body('settings').optional().isObject()
+      .withMessage('Settings must be an object'),
+    body('settings.maxScans').optional().isInt({ min: 1 })
+      .withMessage('Maximum scans must be at least 1'),
+    body('settings.allowMultipleScans').optional().isBoolean()
+      .withMessage('Allow multiple scans must be a boolean'),
+    body('settings.locationRadius').optional().isInt({ min: 10, max: 1000 })
+      .withMessage('Location radius must be between 10 and 1000 meters'),
+    handleValidation
+  ],
+  scan: [
+    param('organizationId').isMongoId()
+      .withMessage('Invalid organization ID'),
+    body('qrData').notEmpty()
+      .withMessage('QR code data is required'),
+    body('location').optional().isObject()
+      .withMessage('Location must be an object'),
+    body('location.type').optional().equals('Point')
+      .withMessage('Location type must be Point'),
+    body('location.coordinates').optional().isArray({ min: 2, max: 2 })
+      .withMessage('Location coordinates must be an array of 2 numbers'),
+    body('location.coordinates.*').optional().isFloat()
+      .withMessage('Location coordinates must be numbers'),
+    handleValidation
+  ]
+};
+
 module.exports = {
   userValidation,
   organizationValidation,
   sessionValidation,
   qrSessionValidation,
-  attendanceValidation
+  attendanceValidation,
+  qrCodeValidation
 };
