@@ -2,11 +2,22 @@
 
 import { useRouter } from 'next/navigation';
 import AuthForm from '@/components/Auth/AuthForm';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function SignupPage({ params }) {
   const router = useRouter();
-  const role = params.role;
+  const [paramsState, setParamsState] = useState(null);
+
+  useEffect(() => {
+    const fetchParams = async () => {
+      const unwrappedParams = await params; // Unwrap params using await
+      setParamsState(unwrappedParams);
+    };
+    
+    fetchParams();
+  }, [params]);
+
+  const role = paramsState ? paramsState.role : null;
 
   useEffect(() => {
     if (!role) {

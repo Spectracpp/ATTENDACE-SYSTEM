@@ -1,40 +1,76 @@
-'use client';
-import { useState } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+"use client";
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { API_ENDPOINTS } from "@/config/api";
 
 export default function Signup() {
+  const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const router = useRouter();
+
+  useEffect(() => {
+    // Check if user is already authenticated
+    const checkAuth = async () => {
+      try {
+        const response = await fetch(API_ENDPOINTS.AUTH.CHECK, {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.authenticated) {
+            router.push("/dashboard"); // Redirect if already authenticated
+          }
+        }
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Auth check failed:", error);
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
+  if (isLoading) {
+    return <div>Loading...</div>; // Or your loading component
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError("Passwords do not match");
       return;
     }
 
     try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
+      const response = await fetch(API_ENDPOINTS.AUTH.SIGNUP, {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
@@ -42,14 +78,15 @@ export default function Signup() {
         }),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        router.push('/auth/verify-email');
+        router.push("/auth/verify-email");
       } else {
-        const data = await response.json();
-        setError(data.message || 'Signup failed');
+        setError(data.message || "Signup failed. Please try again.");
       }
     } catch (err) {
-      setError('An error occurred. Please try again.');
+      setError("Connection failed. Please check your internet connection.");
     }
   };
 
@@ -78,9 +115,12 @@ export default function Signup() {
                 {error}
               </div>
             )}
-            
+
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Full Name
               </label>
               <div className="mt-1">
@@ -98,7 +138,10 @@ export default function Signup() {
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Email address
               </label>
               <div className="mt-1">
@@ -116,7 +159,10 @@ export default function Signup() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Password
               </label>
               <div className="mt-1">
@@ -134,7 +180,10 @@ export default function Signup() {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Confirm Password
               </label>
               <div className="mt-1">
@@ -164,8 +213,11 @@ export default function Signup() {
           <div className="mt-6">
             <div className="text-center">
               <span className="text-sm text-gray-600">
-                Already have an account?{' '}
-                <Link href="/auth/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+                Already have an account?{" "}
+                <Link
+                  href="/auth/login/user"
+                  className="font-medium text-indigo-600 hover:text-indigo-500"
+                >
                   Sign in
                 </Link>
               </span>

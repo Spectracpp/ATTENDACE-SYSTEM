@@ -1,25 +1,20 @@
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { AuthProvider } from '@/context/AuthContext';
-import Header from '@/components/Header/Header';
+import { AuthProvider } from '../context/AuthContext';
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'AttendEase - Smart Attendance System',
-  description: 'Modern attendance tracking with rewards',
+  title: 'AttendEase - Attendance Management System',
+  description: 'Modern attendance management system with QR code scanning',
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} font-sans`}>
+      <body className={`${inter.className} bg-black text-white`}>
         <AuthProvider>
-          <Header />
-          <main className="min-h-screen pt-16 bg-background text-foreground">
+          <main className="min-h-screen">
             {children}
           </main>
         </AuthProvider>

@@ -1,13 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Organization = require('../models/Organization');
 const { auth } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const { rateLimiter } = require('../middleware/rateLimiter');
 const sendEmail = require('../utils/email');
+const crypto = require('crypto');
 
 // Cookie options
 const cookieOptions = {
@@ -24,9 +25,10 @@ const cookieOptions = {
  */
 router.post('/register', 
   validate.userValidation.create,
+  rateLimiter,
   async (req, res) => {
     try {
-      const { email, password, firstName, lastName } = req.body;
+      const { email, password, name, phone, employeeId } = req.body;
 
       // Check if user exists
       const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -34,49 +36,38 @@ router.post('/register',
         return res.status(400).json({ message: 'Email already registered' });
       }
 
+      // Hash password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+
       // Create user
       const user = new User({
         email: email.toLowerCase(),
-        password,
-        firstName,
-        lastName,
+        password: hashedPassword,
+        name,
+        phone,
+        employeeId,
         role: 'user'
       });
 
+      await user.save();
+
       // Generate token
-      const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
-        expiresIn: '1d'
-      });
-
-      // Add token to user
-      user.tokens = [{ token }];
-      await user.save();
-
-      // Generate verification token
-      const verificationToken = crypto.randomBytes(32).toString('hex');
-      user.emailVerificationToken = crypto
-        .createHash('sha256')
-        .update(verificationToken)
-        .digest('hex');
-      user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-      await user.save();
-
-      // Send verification email
-      const verificationURL = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
-      await sendEmail({
-        email: user.email,
-        subject: 'Please verify your email',
-        template: 'emailVerification',
-        data: {
-          name: user.firstName,
-          url: verificationURL
-        }
-      });
+      const token = jwt.sign(
+        { userId: user._id, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
 
       res.status(201).json({
-        message: 'Registration successful. Please check your email to verify your account.',
-        user,
-        token
+        success: true,
+        token,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        }
       });
     } catch (error) {
       console.error('Registration error:', error);
@@ -89,61 +80,41 @@ router.post('/register',
  * @desc Login user
  * @access Public
  */
-router.post('/login',
+router.post('/login', 
   validate.userValidation.login,
+  rateLimiter,
   async (req, res) => {
     try {
       const { email, password } = req.body;
 
       // Find user
-      const user = await User.findOne({ email: email.toLowerCase() })
-        .select('+password +failedLoginAttempts +lockUntil')
-        .populate('organizations.organization', 'name code type status');
-
+      const user = await User.findOne({ email: email.toLowerCase() });
       if (!user) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-      }
-
-      // Check if account is locked
-      if (user.isLocked()) {
-        return res.status(403).json({
-          message: 'Account is temporarily locked. Please try again later.'
-        });
+        return res.status(400).json({ message: 'Invalid credentials' });
       }
 
       // Check password
-      const isMatch = await user.comparePassword(password);
+      const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
-        // Increment failed login attempts
-        user.failedLoginAttempts += 1;
-
-        // Lock account if too many failed attempts
-        if (user.failedLoginAttempts >= 5) {
-          user.lockUntil = Date.now() + 15 * 60 * 1000; // Lock for 15 minutes
-        }
-
-        await user.save();
-        return res.status(401).json({ message: 'Invalid credentials' });
+        return res.status(400).json({ message: 'Invalid credentials' });
       }
 
-      // Reset failed login attempts on successful login
-      user.failedLoginAttempts = 0;
-      user.lockUntil = undefined;
-      user.lastLogin = Date.now();
-
       // Generate token
-      const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
-        expiresIn: '1d'
-      });
-
-      // Add token to user
-      user.tokens = user.tokens.concat({ token });
-      await user.save();
+      const token = jwt.sign(
+        { userId: user._id, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
 
       res.json({
-        message: 'Login successful',
-        user,
-        token
+        success: true,
+        token,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role
+        }
       });
     } catch (error) {
       console.error('Login error:', error);
@@ -158,8 +129,10 @@ router.post('/login',
  */
 router.get('/profile', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id)
-      .populate('organizations.organization', 'name code type status');
+    const user = await User.findById(req.user.userId).select('-password').populate('organizations.organization', 'name code type status');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
     res.json(user);
   } catch (error) {
     console.error('Profile error:', error);
@@ -172,27 +145,38 @@ router.get('/profile', auth, async (req, res) => {
  * @desc Update user profile
  * @access Private
  */
-router.put('/profile',
+router.put('/profile', 
   auth,
   validate.userValidation.update,
   async (req, res) => {
     try {
-      const updates = req.body;
-      const allowedUpdates = ['firstName', 'lastName'];
-      const isValidOperation = Object.keys(updates).every(update => 
-        allowedUpdates.includes(update)
-      );
-
-      if (!isValidOperation) {
-        return res.status(400).json({ message: 'Invalid updates' });
+      const { name, phone, employeeId } = req.body;
+      const user = await User.findById(req.user.userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
       }
 
-      Object.assign(req.user, updates);
-      await req.user.save();
+      // Update fields
+      if (name) user.name = name;
+      if (phone) user.phone = phone;
+      if (employeeId) user.employeeId = employeeId;
 
-      res.json(req.user);
+      await user.save();
+
+      res.json({
+        success: true,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          employeeId: user.employeeId,
+          role: user.role
+        }
+      });
     } catch (error) {
-      console.error('Update profile error:', error);
+      console.error('Profile update error:', error);
       res.status(500).json({ message: 'Error updating profile' });
     }
 });
@@ -293,7 +277,7 @@ router.post('/forgot-password',
         subject: 'Password Reset Request',
         template: 'passwordReset',
         data: {
-          name: user.firstName,
+          name: user.name,
           url: resetURL
         }
       });
@@ -356,7 +340,7 @@ router.post('/register-admin',
         return res.status(401).json({ message: 'Invalid admin registration code' });
       }
 
-      const { email, password, firstName, lastName } = req.body;
+      const { email, password, name, phone, employeeId } = req.body;
 
       // Check if user exists
       const existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -364,12 +348,17 @@ router.post('/register-admin',
         return res.status(400).json({ message: 'Email already registered' });
       }
 
+      // Hash password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+
       // Create admin user
       const user = new User({
         email: email.toLowerCase(),
-        password,
-        firstName,
-        lastName,
+        password: hashedPassword,
+        name,
+        phone,
+        employeeId,
         role: 'admin',
         isEmailVerified: true // Admin users are pre-verified
       });

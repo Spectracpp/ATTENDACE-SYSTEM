@@ -4,44 +4,48 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { LogoWithText } from '../../../../components/Logo';
-import RoleSwitcher from '../../../../components/Auth/RoleSwitcher';
+import { LogoWithText } from '../../../components/Logo';
+import RoleSwitcher from '../../../components/Auth/RoleSwitcher';
 import toast from 'react-hot-toast';
 
-export default function LoginPage({ params }) {
+export default function RegisterPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
+    name: '',
     email: '',
     password: '',
+    confirmPassword: '',
+    employeeId: ''
   });
   const [loading, setLoading] = useState(false);
-  const isAdmin = params.role === 'admin';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
+    if (formData.password !== formData.confirmPassword) {
+      toast.error('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch('/api/v1/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ...formData, role: params.role }),
+        body: JSON.stringify({ ...formData, role: 'user' }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
+        throw new Error(data.message || 'Registration failed');
       }
 
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('role', params.role);
-      localStorage.setItem('userId', data.user.id);
-
-      toast.success('Login successful!');
-      router.push(params.role === 'admin' ? '/admin/dashboard' : '/dashboard');
+      toast.success('Registration successful! Please log in.');
+      router.push('/auth/login/user');
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -70,10 +74,10 @@ export default function LoginPage({ params }) {
             >
               <LogoWithText height={60} animated={true} />
               <h2 className="mt-6 text-3xl font-bold text-white">
-                {isAdmin ? 'Admin Login' : 'User Login'}
+                Create your account
               </h2>
               <p className="mt-2 text-sm text-gray-400">
-                {isAdmin ? 'Access your admin dashboard' : 'Welcome back! Please sign in to continue'}
+                Join AttendEase to start managing your attendance
               </p>
             </motion.div>
 
@@ -85,6 +89,21 @@ export default function LoginPage({ params }) {
               onSubmit={handleSubmit}
             >
               <div className="rounded-md shadow-sm space-y-4">
+                <div>
+                  <label htmlFor="name" className="sr-only">
+                    Full Name
+                  </label>
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="appearance-none relative block w-full px-3 py-2 border border-gray-700 bg-gray-900 placeholder-gray-400 text-white rounded-lg focus:outline-none focus:ring-[#00f2ea] focus:border-[#00f2ea] focus:z-10 sm:text-sm"
+                    placeholder="Full Name"
+                  />
+                </div>
                 <div>
                   <label htmlFor="email" className="sr-only">
                     Email address
@@ -102,6 +121,21 @@ export default function LoginPage({ params }) {
                   />
                 </div>
                 <div>
+                  <label htmlFor="employeeId" className="sr-only">
+                    Employee ID
+                  </label>
+                  <input
+                    id="employeeId"
+                    name="employeeId"
+                    type="text"
+                    required
+                    value={formData.employeeId}
+                    onChange={handleChange}
+                    className="appearance-none relative block w-full px-3 py-2 border border-gray-700 bg-gray-900 placeholder-gray-400 text-white rounded-lg focus:outline-none focus:ring-[#00f2ea] focus:border-[#00f2ea] focus:z-10 sm:text-sm"
+                    placeholder="Employee ID"
+                  />
+                </div>
+                <div>
                   <label htmlFor="password" className="sr-only">
                     Password
                   </label>
@@ -109,12 +143,26 @@ export default function LoginPage({ params }) {
                     id="password"
                     name="password"
                     type="password"
-                    autoComplete="current-password"
                     required
                     value={formData.password}
                     onChange={handleChange}
                     className="appearance-none relative block w-full px-3 py-2 border border-gray-700 bg-gray-900 placeholder-gray-400 text-white rounded-lg focus:outline-none focus:ring-[#00f2ea] focus:border-[#00f2ea] focus:z-10 sm:text-sm"
                     placeholder="Password"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="confirmPassword" className="sr-only">
+                    Confirm Password
+                  </label>
+                  <input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    required
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className="appearance-none relative block w-full px-3 py-2 border border-gray-700 bg-gray-900 placeholder-gray-400 text-white rounded-lg focus:outline-none focus:ring-[#00f2ea] focus:border-[#00f2ea] focus:z-10 sm:text-sm"
+                    placeholder="Confirm Password"
                   />
                 </div>
               </div>
@@ -125,18 +173,18 @@ export default function LoginPage({ params }) {
                   disabled={loading}
                   className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-black bg-[#00f2ea] hover:bg-[#00d8d8] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#00f2ea] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Signing in...' : 'Sign in'}
+                  {loading ? 'Creating account...' : 'Create Account'}
                 </button>
               </div>
 
               <div className="flex flex-col space-y-3 text-sm text-center">
                 <p className="text-gray-400">
-                  Don't have an account?{' '}
+                  Already have an account?{' '}
                   <Link
-                    href={isAdmin ? '/auth/admin/register' : '/auth/register'}
+                    href="/auth/login/user"
                     className="text-[#00f2ea] hover:text-[#00d8d8] transition-colors"
                   >
-                    Sign up
+                    Sign in
                   </Link>
                 </p>
               </div>
@@ -147,10 +195,10 @@ export default function LoginPage({ params }) {
         {/* Right Side - Image */}
         <div className="hidden lg:block lg:w-1/2 relative">
           <div className="absolute inset-0 bg-gradient-to-r from-black to-transparent z-10" />
-          <div className={`absolute inset-0 bg-[url('${isAdmin ? '/admin-login-bg.jpg' : '/login-bg.jpg'}')] bg-cover bg-center`} />
+          <div className="absolute inset-0 bg-[url('/register-bg.jpg')] bg-cover bg-center" />
         </div>
       </div>
-      <RoleSwitcher currentRole={params.role} currentPage="login" />
+      <RoleSwitcher currentRole="user" currentPage="register" />
     </>
   );
 }

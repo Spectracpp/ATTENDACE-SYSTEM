@@ -10,144 +10,133 @@ import {
   FaCoffee,
   FaQrcode,
   FaChartBar,
-  FaFileAlt
+  FaFileAlt,
+  FaFire
 } from 'react-icons/fa';
 
-const features = [
+const popularRewards = [
   {
-    name: 'QR Code Scanning',
-    description:
-      'Quick and accurate attendance marking with QR codes. No more manual entry or paperwork.',
-    icon: FaQrcode,
+    name: '0.001 ETH',
+    tokens: '500 tokens',
+    type: 'Crypto',
+    icon: FaBitcoin,
   },
   {
-    name: 'Real-time Tracking',
-    description:
-      'Monitor attendance in real-time. Get instant updates and notifications.',
-    icon: FaChartBar,
+    name: '$10 Amazon',
+    tokens: '300 tokens',
+    type: 'Gift Card',
+    icon: FaGift,
   },
   {
-    name: 'Detailed Reports',
-    description:
-      'Generate comprehensive reports with just a few clicks. Export in multiple formats.',
-    icon: FaFileAlt,
+    name: '15% Off Coffee',
+    tokens: '100 tokens',
+    type: 'Coupon',
+    icon: FaCoffee,
+  },
+];
+
+const stats = [
+  {
+    value: '15',
+    label: 'Daily Tokens',
+    icon: '💰',
+  },
+  {
+    value: '3x',
+    label: 'Streak Bonus',
+    icon: '🔥',
+  },
+  {
+    value: '$10',
+    label: 'Rewards Starting',
+    icon: '🎁',
   },
 ];
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-black min-h-screen">
       <Header />
       <main className="pt-16">
         {/* Hero Section */}
-        <div className="relative isolate">
-          {/* Animated background */}
-          <div className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80">
-            <div className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-primary to-secondary opacity-30 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]"></div>
-          </div>
+        <div className="relative isolate overflow-hidden">
+          {/* Background gradient */}
+          <div 
+            className="absolute inset-0 -z-10" 
+            style={{
+              background: 'radial-gradient(circle at top, rgba(59, 130, 246, 0.1), transparent 70%)',
+            }}
+          />
 
           <div className="mx-auto max-w-7xl px-6 pb-24 pt-10 sm:pb-32 lg:flex lg:px-8 lg:py-40">
-            <div className="mx-auto max-w-2xl lg:mx-0 lg:max-w-xl lg:flex-shrink-0 lg:pt-8">
-              <div className="mt-24 sm:mt-32 lg:mt-16">
-                <a href="#rewards" className="inline-flex space-x-6">
-                  <span className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold leading-6 text-primary ring-1 ring-inset ring-primary/10">
-                    What's new
-                  </span>
-                  <span className="inline-flex items-center space-x-2 text-sm font-medium leading-6 text-gray-300">
-                    <span>Just launched rewards</span>
-                    <span aria-hidden="true">→</span>
-                  </span>
-                </a>
-              </div>
-              <h1 className="mt-10 text-4xl font-bold tracking-tight gradient-text sm:text-6xl">
-                Gamify Productivity, Reward Success!
-              </h1>
-              <p className="mt-6 text-lg leading-8 text-gray-300">
-                Transform your daily attendance into valuable rewards. Earn tokens, maintain streaks,
-                and redeem for crypto, gift cards, or exclusive perks.
-              </p>
-              <div className="mt-10 flex items-center gap-x-6">
-                <Link
-                  href="/register"
-                  className="rounded-md bg-primary px-3.5 py-2.5 text-sm font-semibold text-black shadow-sm hover:bg-primary-dark transition-colors"
-                >
-                  Get started
-                </Link>
-                <Link href="/rewards/store" className="text-sm font-semibold leading-6 text-gray-300 hover:text-primary transition-colors">
-                  View Rewards <span aria-hidden="true">→</span>
-                </Link>
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-16">
+              {/* Left side - Main content */}
+              <div className="lg:w-1/2">
+                <div className="flex items-center gap-2 text-sm font-semibold text-gray-400 mb-4">
+                  <span className="px-3 py-1 rounded-full bg-gray-800">What's new</span>
+                  <span>Just launched rewards →</span>
+                </div>
+                
+                <h1 className="text-5xl font-bold tracking-tight mb-6">
+                  <span className="text-[#00f2ea]">Gamify</span>{' '}
+                  <span className="text-[#a855f7]">Productivity</span>,<br />
+                  <span className="text-[#8b5cf6]">Reward</span>{' '}
+                  <span className="text-[#6366f1]">Success!</span>
+                </h1>
+                
+                <p className="text-lg text-gray-400 mb-8">
+                  Transform your daily attendance into valuable rewards. Earn tokens, maintain streaks, and redeem for crypto, gift cards, or exclusive perks.
+                </p>
+
+                <div className="flex items-center gap-4">
+                  <Link 
+                    href="/rewards"
+                    className="inline-flex items-center px-6 py-3 rounded-lg bg-[#00f2ea] text-black font-semibold hover:bg-[#00d8d8] transition-colors"
+                  >
+                    View Rewards →
+                  </Link>
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-3 gap-8 mt-16">
+                  {stats.map((stat, index) => (
+                    <div key={index} className="border border-gray-800 rounded-lg p-4 bg-black/50 backdrop-blur-sm">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-2xl">{stat.icon}</span>
+                        <span className="text-2xl font-bold text-white">{stat.value}</span>
+                      </div>
+                      <p className="text-sm text-gray-400">{stat.label}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              {/* Reward Stats */}
-              <div className="mt-10 grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-3">
-                <div className="flex flex-col cyber-border p-4">
-                  <dt className="text-sm font-medium leading-6 text-gray-300">Daily Tokens</dt>
-                  <dd className="order-first text-3xl font-semibold tracking-tight text-primary">15 🪙</dd>
-                </div>
-                <div className="flex flex-col cyber-border p-4">
-                  <dt className="text-sm font-medium leading-6 text-gray-300">Streak Bonus</dt>
-                  <dd className="order-first text-3xl font-semibold tracking-tight text-secondary">3x 🔥</dd>
-                </div>
-                <div className="flex flex-col cyber-border p-4">
-                  <dt className="text-sm font-medium leading-6 text-gray-300">Rewards Starting</dt>
-                  <dd className="order-first text-3xl font-semibold tracking-tight text-primary">$10 💰</dd>
-                </div>
-              </div>
-            </div>
-
-            {/* Right side with rewards preview */}
-            <div className="mx-auto mt-16 flex max-w-2xl sm:mt-24 lg:ml-10 lg:mr-0 lg:mt-0 lg:max-w-none lg:flex-none xl:ml-32">
-              <div className="max-w-3xl flex-none sm:max-w-5xl lg:max-w-none">
-                <div className="cyber-border p-6 bg-accent-1/10 backdrop-blur-sm">
-                  <h3 className="text-2xl font-bold gradient-text mb-6">Popular Rewards</h3>
+              {/* Right side - Popular Rewards */}
+              <div className="lg:w-1/2">
+                <div className="bg-black/40 backdrop-blur-md rounded-2xl p-6 border border-gray-800">
+                  <h2 className="text-xl font-semibold mb-6">
+                    <span className="text-[#00f2ea]">Popular</span>{' '}
+                    <span className="text-white">Rewards</span>
+                  </h2>
+                  
                   <div className="space-y-4">
-                    {/* Crypto Reward */}
-                    <div className="cyber-card bg-accent-2/20 p-4 flex justify-between items-center group hover:bg-accent-2/30 transition-all duration-300">
-                      <div className="flex items-center space-x-4">
-                        <div className="p-3 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                          <FaBitcoin className="w-6 h-6 text-primary" />
+                    {popularRewards.map((reward, index) => (
+                      <div 
+                        key={index}
+                        className="flex items-center justify-between p-4 rounded-lg bg-black/50 border border-gray-800 hover:border-gray-700 transition-colors"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="p-3 rounded-lg bg-gray-800">
+                            <reward.icon className="h-6 w-6 text-[#00f2ea]" />
+                          </div>
+                          <div>
+                            <h3 className="font-medium text-white">{reward.name}</h3>
+                            <p className="text-sm text-gray-400">{reward.tokens}</p>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="text-xl font-bold text-white">0.001 ETH</h4>
-                          <p className="text-gray-400">500 tokens</p>
-                        </div>
+                        <span className="text-sm text-gray-400">{reward.type}</span>
                       </div>
-                      <span className="text-primary bg-primary/10 px-4 py-1 rounded-full text-sm font-medium">
-                        Crypto
-                      </span>
-                    </div>
-
-                    {/* Gift Card Reward */}
-                    <div className="cyber-card bg-accent-2/20 p-4 flex justify-between items-center group hover:bg-accent-2/30 transition-all duration-300">
-                      <div className="flex items-center space-x-4">
-                        <div className="p-3 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                          <FaGift className="w-6 h-6 text-primary" />
-                        </div>
-                        <div>
-                          <h4 className="text-xl font-bold text-white">$10 Amazon</h4>
-                          <p className="text-gray-400">300 tokens</p>
-                        </div>
-                      </div>
-                      <span className="text-primary bg-primary/10 px-4 py-1 rounded-full text-sm font-medium">
-                        Gift Card
-                      </span>
-                    </div>
-
-                    {/* Coffee Reward */}
-                    <div className="cyber-card bg-accent-2/20 p-4 flex justify-between items-center group hover:bg-accent-2/30 transition-all duration-300">
-                      <div className="flex items-center space-x-4">
-                        <div className="p-3 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                          <FaCoffee className="w-6 h-6 text-primary" />
-                        </div>
-                        <div>
-                          <h4 className="text-xl font-bold text-white">15% Off Coffee</h4>
-                          <p className="text-gray-400">100 tokens</p>
-                        </div>
-                      </div>
-                      <span className="text-primary bg-primary/10 px-4 py-1 rounded-full text-sm font-medium">
-                        Coupon
-                      </span>
-                    </div>
+                    ))}
                   </div>
                 </div>
               </div>

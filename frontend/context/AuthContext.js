@@ -9,6 +9,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const router = useRouter();
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
   useEffect(() => {
     checkUser();
@@ -22,7 +23,7 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      const response = await fetch('http://localhost:5000/api/auth/verify', {
+      const response = await fetch(`${apiUrl}/auth/verify`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -47,34 +48,69 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const login = async (email, password, rememberMe = false) => {
+  const register = async ({ name, email, password, phone, employeeId }) => {
     try {
-      setError(null);
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      if (!name || !email || !password || !phone || !employeeId) {
+        throw new Error('All fields are required');
+      }
+
+      const response = await fetch(`${apiUrl}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          phone,
+          employeeId
+        }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Login failed');
+        throw new Error(data.message || 'Registration failed');
       }
 
-      const { token, user: userData } = await response.json();
-      
-      // Store token based on remember me preference
+      return data;
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
+  };
+
+  const login = async (email, password, rememberMe = false) => {
+    try {
+      setError(null);
+      const response = await fetch(`${apiUrl}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.toLowerCase(), password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
+
+      const { token, user: userData } = data;
+
+      // Store token based on rememberMe preference
       if (rememberMe) {
         localStorage.setItem('token', token);
       } else {
         sessionStorage.setItem('token', token);
       }
-      
+
       setUser(userData);
       return userData;
     } catch (error) {
+      console.error('Login error:', error);
       setError(error.message);
       throw error;
     }
@@ -83,7 +119,7 @@ export function AuthProvider({ children }) {
   const signup = async (userData) => {
     try {
       setError(null);
-      const response = await fetch('http://localhost:5000/api/auth/register', {
+      const response = await fetch(`${apiUrl}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -113,7 +149,7 @@ export function AuthProvider({ children }) {
   const verifyEmail = async (token) => {
     try {
       setError(null);
-      const response = await fetch('http://localhost:5000/api/auth/verify-email', {
+      const response = await fetch(`${apiUrl}/auth/verify-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -137,7 +173,7 @@ export function AuthProvider({ children }) {
   const resendVerificationEmail = async (email) => {
     try {
       setError(null);
-      const response = await fetch('http://localhost:5000/api/auth/resend-verification', {
+      const response = await fetch(`${apiUrl}/auth/resend-verification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -160,7 +196,7 @@ export function AuthProvider({ children }) {
   const requestPasswordReset = async (email) => {
     try {
       setError(null);
-      const response = await fetch('http://localhost:5000/api/auth/request-password-reset', {
+      const response = await fetch(`${apiUrl}/auth/request-password-reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -183,7 +219,7 @@ export function AuthProvider({ children }) {
   const resetPassword = async (token, newPassword) => {
     try {
       setError(null);
-      const response = await fetch('http://localhost:5000/api/auth/reset-password', {
+      const response = await fetch(`${apiUrl}/auth/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -203,27 +239,41 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    sessionStorage.removeItem('token');
-    setUser(null);
-    router.push('/');
+  const logout = async () => {
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      if (token) {
+        await fetch(`${apiUrl}/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
+      setUser(null);
+    }
   };
 
   return (
     <AuthContext.Provider 
       value={{ 
         user, 
-        loading, 
+        loading,
         error,
-        login, 
-        signup, 
+        login,
         logout,
+        register,
+        signup,
         verifyEmail,
         resendVerificationEmail,
         requestPasswordReset,
         resetPassword,
-        checkUser 
+        checkUser
       }}
     >
       {children}
