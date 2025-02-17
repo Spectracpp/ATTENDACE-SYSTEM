@@ -78,6 +78,10 @@ export default function RegisterPage() {
               </h2>
               <p className="mt-2 text-sm text-gray-400">
                 Join AttendEase to start managing your attendance
+                <span className="mx-2">|</span>
+                <Link href="/auth/register/admin" className="font-medium text-[#00f2ea] hover:text-[#00d8d8]">
+                  Admin Registration
+                </Link>
               </p>
             </motion.div>
 

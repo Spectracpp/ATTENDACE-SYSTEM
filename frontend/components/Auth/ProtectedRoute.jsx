@@ -1,8 +1,8 @@
 'use client';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
-import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { useAuth } from '../../app/context/AuthContext';
+import LoadingSpinner from '../common/LoadingSpinner';
 
 const ProtectedRoute = ({ children, allowedRoles = ['user', 'admin'] }) => {
   const { user, loading } = useAuth();

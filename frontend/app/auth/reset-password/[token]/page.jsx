@@ -1,8 +1,9 @@
 'use client';
+
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
-import LoadingSpinner from '@/components/common/LoadingSpinner';
+import { useParams, useRouter } from 'next/navigation';
+import LoadingSpinner from '../../../../components/common/LoadingSpinner';
+import { useAuth } from '../../../context/AuthContext';
 
 export default function ResetPassword({ params }) {
   const [password, setPassword] = useState('');

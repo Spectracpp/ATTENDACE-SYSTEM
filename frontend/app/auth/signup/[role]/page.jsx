@@ -1,11 +1,12 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import AuthForm from '@/components/Auth/AuthForm';
+import { useRouter, useParams } from 'next/navigation';
+import AuthForm from '../../../../components/Auth/AuthForm';
 import { useEffect, useState } from 'react';
 
-export default function SignupPage({ params }) {
+export default function SignupPage() {
   const router = useRouter();
+  const params = useParams();
   const [paramsState, setParamsState] = useState(null);
 
   useEffect(() => {

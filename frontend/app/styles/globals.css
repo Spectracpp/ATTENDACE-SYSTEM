@@ -1,0 +1,181 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #00f2ea;
+  --primary-hover: #00d8d8;
+  --secondary: #ff0050;
+  --secondary-hover: #e6004a;
+  --background: #000000;
+  --card-bg: #1a1a1a;
+  --paper-bg: #262626;
+  --elevated-bg: #333333;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-white font-sans antialiased;
+  }
+
+  /* Modern Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-black/20;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-primary/50 rounded-full hover:bg-primary/70 transition-colors;
+  }
+}
+
+@layer components {
+  /* Modern Button Styles */
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm transition-all duration-200;
+  }
+
+  .btn-primary {
+    @apply bg-primary hover:bg-primary-hover text-black;
+  }
+
+  .btn-secondary {
+    @apply bg-secondary hover:bg-secondary-hover text-white;
+  }
+
+  .btn-outline {
+    @apply border-primary text-primary hover:bg-primary hover:text-black;
+  }
+
+  .btn-ghost {
+    @apply text-primary hover:bg-primary/10;
+  }
+
+  /* Modern Form Controls */
+  .form-input {
+    @apply block w-full px-3 py-2 border border-gray-800 bg-black/50 text-white placeholder-gray-500 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-gray-300 mb-1;
+  }
+
+  .form-error {
+    @apply text-error-main text-sm mt-1;
+  }
+
+  /* Modern Card Styles */
+  .card {
+    @apply bg-card-bg rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200;
+  }
+
+  .card-elevated {
+    @apply bg-elevated-bg rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-200;
+  }
+
+  /* Modern Loading Animations */
+  .loading-spinner {
+    @apply animate-spin rounded-full border-2 border-gray-300 border-t-primary h-6 w-6;
+  }
+
+  .loading-pulse {
+    @apply animate-pulse bg-gray-300/20 rounded-md;
+  }
+
+  /* Modern Badge Styles */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply bg-success-light text-success-dark;
+  }
+
+  .badge-error {
+    @apply bg-error-light text-error-dark;
+  }
+
+  .badge-warning {
+    @apply bg-warning-light text-warning-dark;
+  }
+
+  .badge-info {
+    @apply bg-info-light text-info-dark;
+  }
+
+  /* Modern Table Styles */
+  .table-modern {
+    @apply min-w-full divide-y divide-gray-800;
+  }
+
+  .table-modern th {
+    @apply px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider;
+  }
+
+  .table-modern td {
+    @apply px-6 py-4 whitespace-nowrap text-sm;
+  }
+
+  .table-modern tr {
+    @apply hover:bg-black/20 transition-colors;
+  }
+
+  /* Modern Navigation Styles */
+  .nav-link {
+    @apply text-gray-300 hover:text-white hover:bg-white/10 px-3 py-2 rounded-md text-sm font-medium transition-colors;
+  }
+
+  .nav-link-active {
+    @apply bg-primary/10 text-primary;
+  }
+
+  /* Modern Modal Styles */
+  .modal {
+    @apply fixed inset-0 z-50 overflow-y-auto;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity;
+  }
+
+  .modal-content {
+    @apply relative transform overflow-hidden rounded-lg bg-card-bg px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6;
+  }
+
+  /* Modern Tooltip Styles */
+  .tooltip {
+    @apply absolute z-10 px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded shadow-lg;
+  }
+
+  /* Glass Morphism Effects */
+  .glass {
+    @apply bg-white/10 backdrop-blur-lg border border-white/20 shadow-lg;
+  }
+
+  .glass-dark {
+    @apply bg-black/30 backdrop-blur-lg border border-white/10 shadow-lg;
+  }
+}
+
+/* Modern Animations */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Modern Grid Layout */
+.auto-grid {
+  @apply grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+}

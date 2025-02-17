@@ -34,8 +34,36 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin'],
+    enum: ['user', 'admin', 'organization_admin'],
     default: 'user'
+  },
+  organizations: [{
+    organization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Organization',
+      required: true
+    },
+    role: {
+      type: String,
+      enum: ['member', 'admin', 'owner'],
+      default: 'member'
+    },
+    joinedAt: {
+      type: Date,
+      default: Date.now
+    },
+    isActive: {
+      type: Boolean,
+      default: true
+    }
+  }],
+  primaryOrganization: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization'
+  },
+  rewardPoints: {
+    type: Number,
+    default: 0
   },
   isActive: {
     type: Boolean,
@@ -64,6 +92,20 @@ userSchema.pre('save', async function(next) {
 // Compare password method
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
+};
+
+// Check if user has permission for an organization
+userSchema.methods.hasOrganizationPermission = function(organizationId, requiredRole = 'member') {
+  const org = this.organizations.find(org => org.organization.toString() === organizationId.toString());
+  if (!org) return false;
+
+  const roleHierarchy = {
+    'member': 0,
+    'admin': 1,
+    'owner': 2
+  };
+
+  return roleHierarchy[org.role] >= roleHierarchy[requiredRole];
 };
 
 // Remove sensitive information when converting to JSON

@@ -3,72 +3,64 @@ const User = require('../models/User');
 
 const auth = async (req, res, next) => {
   try {
-    // Get token from header
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        message: 'No token provided'
-      });
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      throw new Error('Authentication required');
     }
 
-    const token = authHeader.split(' ')[1];
-
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (!decoded) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token'
-      });
-    }
+    const user = await User.findById(decoded.userId)
+      .populate('organizations.organization', 'name code type status')
+      .populate('primaryOrganization', 'name code type status');
 
-    // Find user
-    const user = await User.findById(decoded.userId).select('-password');
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not found'
-      });
+      throw new Error('User not found');
     }
 
-    // Check if user is active
     if (!user.isActive) {
-      return res.status(401).json({
-        success: false,
-        message: 'Account is inactive'
-      });
+      throw new Error('Account is inactive');
     }
 
-    // Add user to request
-    req.user = {
-      userId: user._id,
-      role: user.role
-    };
-
+    req.user = user;
+    req.token = token;
     next();
   } catch (error) {
-    console.error('Auth error:', error);
-    res.status(401).json({
-      success: false,
-      message: 'Authentication failed'
-    });
+    res.status(401).json({ message: error.message || 'Authentication failed' });
   }
 };
 
-// Role-based authorization middleware
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ 
-        message: 'You do not have permission to perform this action' 
-      });
+      return res.status(403).json({ message: 'Access denied' });
     }
     next();
   };
 };
 
+const authorizeOrganization = (requiredRole = 'member') => {
+  return async (req, res, next) => {
+    try {
+      const organizationId = req.params.organizationId || req.body.organizationId;
+      
+      if (!organizationId) {
+        return res.status(400).json({ message: 'Organization ID is required' });
+      }
+
+      if (!req.user.hasOrganizationPermission(organizationId, requiredRole)) {
+        return res.status(403).json({ message: 'Insufficient organization permissions' });
+      }
+
+      next();
+    } catch (error) {
+      res.status(500).json({ message: 'Error checking organization permissions' });
+    }
+  };
+};
+
 module.exports = {
   auth,
-  authorize
+  authorize,
+  authorizeOrganization
 };

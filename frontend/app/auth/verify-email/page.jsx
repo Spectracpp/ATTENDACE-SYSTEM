@@ -1,8 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
-import LoadingSpinner from '@/components/common/LoadingSpinner';
+import LoadingSpinner from '../../../components/common/LoadingSpinner';
+import { useAuth } from '../../context/AuthContext';
 
 export default function VerifyEmail() {
   const [loading, setLoading] = useState(false);

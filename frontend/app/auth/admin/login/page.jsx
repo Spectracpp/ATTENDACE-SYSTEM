@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { LogoWithText } from '../../../../components/Logo';
+import { FaEnvelope, FaLock, FaUserShield } from 'react-icons/fa';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 
 export default function AdminLogin() {
@@ -59,84 +61,163 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-gradient-to-br from-black via-gray-900 to-black">
       {/* Left Side - Form */}
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-black">
-        <div className="max-w-md w-full space-y-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center"
-          >
-            <LogoWithText height={60} animated={true} />
-            <h2 className="mt-6 text-3xl font-bold text-white">
-              Admin Login
-            </h2>
-            <p className="mt-2 text-sm text-gray-400">
-              Access your admin dashboard
-            </p>
-          </motion.div>
-
-          <motion.form
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="mt-8 space-y-6"
-            onSubmit={handleSubmit}
-          >
-            <div className="rounded-md shadow-sm space-y-4">
-              <div>
-                <label htmlFor="email" className="sr-only">
-                  Email address
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="appearance-none relative block w-full px-3 py-2 border border-gray-700 bg-gray-900 placeholder-gray-400 text-white rounded-lg focus:outline-none focus:ring-[#00f2ea] focus:border-[#00f2ea] focus:z-10 sm:text-sm"
-                  placeholder="Email address"
+      <motion.div 
+        className="w-full lg:w-1/2 flex items-center justify-center p-8 lg:p-16"
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="w-full max-w-md space-y-8 relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary-main/20 to-secondary-main/20 blur-3xl -z-10" />
+          
+          <div className="relative bg-gray-900/50 backdrop-blur-xl rounded-2xl p-8 shadow-2xl border border-white/10">
+            <motion.div
+              className="text-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <div className="mx-auto h-24 w-24 relative mb-8">
+                <Image
+                  src="/logo.png"
+                  alt="Logo"
+                  fill
+                  className="object-contain drop-shadow-lg"
                 />
               </div>
-              <div>
-                <label htmlFor="password" className="sr-only">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="appearance-none relative block w-full px-3 py-2 border border-gray-700 bg-gray-900 placeholder-gray-400 text-white rounded-lg focus:outline-none focus:ring-[#00f2ea] focus:border-[#00f2ea] focus:z-10 sm:text-sm"
-                  placeholder="Password"
-                />
-              </div>
-            </div>
+              <h2 className="text-3xl font-bold text-white mb-2 bg-clip-text text-transparent bg-gradient-to-r from-primary-main to-secondary-main">
+                Admin Login
+              </h2>
+              <p className="text-sm text-gray-400">
+                Not an admin?{' '}
+                <Link href="/auth/login" className="font-medium text-primary-main hover:text-primary-hover transition-colors">
+                  User Login
+                </Link>
+              </p>
+            </motion.div>
 
-            <div>
+            <motion.form
+              className="mt-8 space-y-6"
+              onSubmit={handleSubmit}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              <div className="space-y-4">
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaEnvelope className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
+                  </div>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="form-input pl-10 bg-gray-800/50 border-gray-700 focus:border-primary-main focus:ring-primary-main/50 rounded-xl"
+                    placeholder="Admin email"
+                  />
+                </div>
+
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaLock className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
+                  </div>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="form-input pl-10 bg-gray-800/50 border-gray-700 focus:border-primary-main focus:ring-primary-main/50 rounded-xl"
+                    placeholder="Password"
+                  />
+                </div>
+              </div>
+
+              <div className="text-sm text-right">
+                <Link href="/auth/forgot-password" className="font-medium text-primary-main hover:text-primary-hover transition-colors">
+                  Forgot password?
+                </Link>
+              </div>
+
               <button
                 type="submit"
                 disabled={loading}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-black bg-[#00f2ea] hover:bg-[#00d8d8] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#00f2ea] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`
+                  relative w-full px-4 py-3 text-sm font-medium rounded-xl
+                  bg-gradient-to-r from-primary-main to-secondary-main
+                  hover:from-primary-hover hover:to-secondary-hover
+                  text-black transition-all duration-200 transform hover:scale-[1.02]
+                  disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
+                  focus:outline-none focus:ring-2 focus:ring-primary-main/50 focus:ring-offset-2 focus:ring-offset-gray-900
+                `}
               >
-                {loading ? 'Signing in...' : 'Sign in'}
+                <span className="absolute inset-0 bg-white/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span className="relative flex items-center justify-center">
+                  {loading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2" />
+                      Signing in...
+                    </>
+                  ) : (
+                    <>
+                      <FaUserShield className="w-5 h-5 mr-2" />
+                      Admin Sign in
+                    </>
+                  )}
+                </span>
               </button>
-            </div>
-          </motion.form>
+            </motion.form>
+          </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Right Side - Image */}
-      <div className="hidden lg:block lg:w-1/2 relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-black to-transparent z-10" />
-        <div className="absolute inset-0 bg-[url('/admin-login-bg.jpg')] bg-cover bg-center" />
-      </div>
+      <motion.div
+        className="hidden lg:block relative w-1/2"
+        initial={{ opacity: 0, scale: 1.1 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.7 }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-main/20 via-transparent to-secondary-main/20" />
+        <Image
+          className="absolute inset-0 h-full w-full object-cover"
+          src="/auth-bg.jpg"
+          alt="Authentication background"
+          fill
+          priority
+        />
+        <div className="absolute inset-0 bg-gradient-to-l from-black/90 to-black/20" />
+        
+        <div className="relative h-full flex items-center justify-center p-16">
+          <div className="text-center max-w-xl">
+            <motion.h1 
+              className="text-4xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary-main to-secondary-main"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+            >
+              Admin Dashboard Access
+            </motion.h1>
+            <motion.p 
+              className="text-lg text-gray-300"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+            >
+              Manage your organization's attendance system with powerful admin controls.
+              Secure, efficient, and easy to use.
+            </motion.p>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
