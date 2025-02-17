@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { useAuth } from '../../context/AuthContext';
-import { useRouter } from 'next/navigation';
-import { LogoWithText } from '../Logo';
+import { useState } from "react";
+import Link from "next/link";
+import { useAuth } from "../../context/AuthContext";
+import { useRouter } from "next/navigation";
+import { LogoWithText } from "../Logo";
 
 const Header = () => {
   const { user, logout } = useAuth();
@@ -13,7 +13,7 @@ const Header = () => {
 
   const handleLogout = async () => {
     await logout();
-    router.push('/login');
+    router.push("/login");
   };
 
   return (
@@ -25,21 +25,33 @@ const Header = () => {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-6">
-          <Link href="/" className="text-gray-400 hover:text-[#00f2ea] transition-colors">
+          <Link
+            href="/"
+            className="text-gray-400 hover:text-[#00f2ea] transition-colors"
+          >
             Home
           </Link>
-          
+
           {user ? (
             <>
-              {user.role === 'admin' && (
-                <Link href="/admin" className="text-gray-400 hover:text-[#00f2ea] transition-colors">
+              {user.role === "admin" && (
+                <Link
+                  href="/admin"
+                  className="text-gray-400 hover:text-[#00f2ea] transition-colors"
+                >
                   Admin Dashboard
                 </Link>
               )}
-              <Link href="/dashboard" className="text-gray-400 hover:text-[#00f2ea] transition-colors">
+              <Link
+                href="/dashboard"
+                className="text-gray-400 hover:text-[#00f2ea] transition-colors"
+              >
                 Dashboard
               </Link>
-              <Link href="/rewards" className="text-gray-400 hover:text-[#00f2ea] transition-colors">
+              <Link
+                href="/rewards"
+                className="text-gray-400 hover:text-[#00f2ea] transition-colors"
+              >
                 Rewards
               </Link>
               <button
@@ -52,13 +64,13 @@ const Header = () => {
           ) : (
             <>
               <Link
-                href="/login"
+                href="/auth/login"
                 className="px-4 py-2 rounded-lg text-[#00f2ea] border border-[#00f2ea] hover:bg-[#00f2ea] hover:text-black transition-colors"
               >
                 Login
               </Link>
               <Link
-                href="/register"
+                href="/auth/register"
                 className="px-4 py-2 rounded-lg bg-[#00f2ea] text-black hover:bg-[#00d8d8] transition-colors"
               >
                 Register
@@ -107,10 +119,10 @@ const Header = () => {
               >
                 Home
               </Link>
-              
+
               {user ? (
                 <>
-                  {user.role === 'admin' && (
+                  {user.role === "admin" && (
                     <Link
                       href="/admin"
                       className="text-gray-400 hover:text-[#00f2ea] transition-colors"
