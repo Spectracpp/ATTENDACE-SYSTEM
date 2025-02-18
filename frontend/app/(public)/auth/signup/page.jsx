@@ -1,9 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
-import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { API_ENDPOINTS } from "@/config/api";
+import Link from "next/link";
+import { API_URL } from "@/config/api";
 
 export default function Signup() {
   const [isLoading, setIsLoading] = useState(true);
@@ -20,7 +19,7 @@ export default function Signup() {
     // Check if user is already authenticated
     const checkAuth = async () => {
       try {
-        const response = await fetch(API_ENDPOINTS.AUTH.CHECK, {
+        const response = await fetch(`${API_URL}/auth/check`, {
           method: "GET",
           credentials: "include",
           headers: {
@@ -64,7 +63,7 @@ export default function Signup() {
     }
 
     try {
-      const response = await fetch(API_ENDPOINTS.AUTH.SIGNUP, {
+      const response = await fetch(`${API_URL}/auth/signup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -94,7 +93,7 @@ export default function Signup() {
     <div className="min-h-screen bg-gray-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <Image
+          <img
             src="/logo.svg"
             alt="Logo"
             width={100}

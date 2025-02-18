@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Header from '../../../components/Header/Header';
+import Header from '@/components/Header/Header';
 
 export default function RewardsStore() {
   // Mock data - Replace with actual data from your backend

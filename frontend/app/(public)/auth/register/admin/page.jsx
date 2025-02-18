@@ -4,27 +4,33 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../context/AuthContext';
-import { FaEnvelope, FaLock, FaUserCircle } from 'react-icons/fa';
+import { useAuth } from '@/app/context/AuthContext';
+import { FaUser, FaEnvelope, FaLock, FaPhone, FaShieldAlt, FaBuilding, FaKey, FaIdCard } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
-export default function Login() {
+export default function AdminRegister() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { register } = useAuth();
   const [formData, setFormData] = useState({
+    name: '',
     email: '',
     password: '',
-    rememberMe: false
+    confirmPassword: '',
+    phone: '',
+    employeeId: '',
+    department: '',
+    adminCode: '',
+    role: 'admin'
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: value
     }));
   };
 
@@ -33,20 +39,24 @@ export default function Login() {
     setError('');
     setLoading(true);
 
+    if (formData.password !== formData.confirmPassword) {
+      toast.error('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.adminCode) {
+      toast.error('Admin registration code is required');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const userData = await login(formData.email, formData.password, formData.rememberMe);
-      toast.success('Login successful!');
-      
-      // Redirect based on user role
-      if (userData.role === 'admin') {
-        router.push('/admin/dashboard');
-      } else {
-        router.push('/dashboard');
-      }
+      await register(formData);
+      toast.success('Registration successful! Please log in.');
+      router.push('/auth/login');
     } catch (err) {
-      console.error('Login error:', err);
-      setError(err.message || 'Login failed');
-      toast.error(err.message || 'Login failed');
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -80,16 +90,16 @@ export default function Login() {
                 />
               </div>
               <h2 className="text-3xl font-bold text-white mb-2 bg-clip-text text-transparent bg-gradient-to-r from-primary-main to-secondary-main">
-                Welcome back
+                Admin Registration
               </h2>
               <p className="text-sm text-gray-400">
-                Don't have an account?{' '}
-                <Link href="/auth/register" className="font-medium text-primary-main hover:text-primary-hover transition-colors">
-                  Sign up
+                Already have an account?{' '}
+                <Link href="/auth/login" className="font-medium text-primary-main hover:text-primary-hover transition-colors">
+                  Sign in
                 </Link>
                 <span className="mx-2">|</span>
-                <Link href="/auth/admin/login" className="font-medium text-primary-main hover:text-primary-hover transition-colors">
-                  Admin Login
+                <Link href="/auth/register/user" className="font-medium text-primary-main hover:text-primary-hover transition-colors">
+                  User Registration
                 </Link>
               </p>
             </motion.div>
@@ -114,6 +124,23 @@ export default function Login() {
               <div className="space-y-4">
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaUser className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
+                  </div>
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    autoComplete="name"
+                    required
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="form-input pl-10 bg-gray-800/50 border-gray-700 focus:border-primary-main focus:ring-primary-main/50 rounded-xl"
+                    placeholder="Full name"
+                  />
+                </div>
+
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <FaEnvelope className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
                   </div>
                   <input
@@ -131,13 +158,83 @@ export default function Login() {
 
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaPhone className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
+                  </div>
+                  <input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    autoComplete="tel"
+                    required
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="form-input pl-10 bg-gray-800/50 border-gray-700 focus:border-primary-main focus:ring-primary-main/50 rounded-xl"
+                    placeholder="Phone number"
+                  />
+                </div>
+
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaIdCard className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
+                  </div>
+                  <input
+                    id="employeeId"
+                    name="employeeId"
+                    type="text"
+                    required
+                    value={formData.employeeId}
+                    onChange={handleChange}
+                    className="form-input pl-10 bg-gray-800/50 border-gray-700 focus:border-primary-main focus:ring-primary-main/50 rounded-xl"
+                    placeholder="Employee ID"
+                  />
+                </div>
+
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaBuilding className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
+                  </div>
+                  <select
+                    id="department"
+                    name="department"
+                    required
+                    value={formData.department}
+                    onChange={handleChange}
+                    className="form-input pl-10 bg-gray-800/50 border-gray-700 focus:border-primary-main focus:ring-primary-main/50 rounded-xl"
+                  >
+                    <option value="">Select Department</option>
+                    <option value="IT">IT</option>
+                    <option value="HR">HR</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Operations">Operations</option>
+                    <option value="Management">Management</option>
+                  </select>
+                </div>
+
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaKey className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
+                  </div>
+                  <input
+                    id="adminCode"
+                    name="adminCode"
+                    type="password"
+                    required
+                    value={formData.adminCode}
+                    onChange={handleChange}
+                    className="form-input pl-10 bg-gray-800/50 border-gray-700 focus:border-primary-main focus:ring-primary-main/50 rounded-xl"
+                    placeholder="Admin Registration Code"
+                  />
+                </div>
+
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <FaLock className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
                   </div>
                   <input
                     id="password"
                     name="password"
                     type="password"
-                    autoComplete="current-password"
+                    autoComplete="new-password"
                     required
                     value={formData.password}
                     onChange={handleChange}
@@ -145,27 +242,22 @@ export default function Login() {
                     placeholder="Password"
                   />
                 </div>
-              </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaLock className="h-5 w-5 text-gray-400 group-focus-within:text-primary-main transition-colors" />
+                  </div>
                   <input
-                    id="rememberMe"
-                    name="rememberMe"
-                    type="checkbox"
-                    checked={formData.rememberMe}
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    value={formData.confirmPassword}
                     onChange={handleChange}
-                    className="h-4 w-4 text-primary-main focus:ring-primary-main border-gray-700 rounded bg-gray-800/50"
+                    className="form-input pl-10 bg-gray-800/50 border-gray-700 focus:border-primary-main focus:ring-primary-main/50 rounded-xl"
+                    placeholder="Confirm password"
                   />
-                  <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-400">
-                    Remember me
-                  </label>
-                </div>
-
-                <div className="text-sm">
-                  <Link href="/auth/forgot-password" className="font-medium text-primary-main hover:text-primary-hover transition-colors">
-                    Forgot password?
-                  </Link>
                 </div>
               </div>
 
@@ -186,12 +278,12 @@ export default function Login() {
                   {loading ? (
                     <>
                       <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin mr-2" />
-                      Signing in...
+                      Creating account...
                     </>
                   ) : (
                     <>
-                      <FaUserCircle className="w-5 h-5 mr-2" />
-                      Sign in
+                      <FaShieldAlt className="w-5 h-5 mr-2" />
+                      Create admin account
                     </>
                   )}
                 </span>
@@ -226,7 +318,7 @@ export default function Login() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
             >
-              Transform Your Attendance Management
+              Join as an Administrator
             </motion.h1>
             <motion.p 
               className="text-lg text-gray-300"
@@ -234,8 +326,8 @@ export default function Login() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.7 }}
             >
-              Streamline your attendance tracking with our modern QR-based system. 
-              Simple, efficient, and reliable.
+              Take control of your organization's attendance management.
+              Create an admin account to access powerful management tools.
             </motion.p>
           </div>
         </div>

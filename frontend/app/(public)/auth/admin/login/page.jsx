@@ -34,6 +34,7 @@ export default function AdminLogin() {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ ...formData, role: 'admin' }),
       });
 
@@ -46,10 +47,6 @@ export default function AdminLogin() {
       if (data.user.role !== 'admin') {
         throw new Error('Unauthorized. Admin access only.');
       }
-
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('role', 'admin');
-      localStorage.setItem('userId', data.user.id);
 
       toast.success('Login successful!');
       router.push('/admin/dashboard');

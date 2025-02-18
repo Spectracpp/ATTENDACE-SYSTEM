@@ -1,36 +1,148 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# AttendEase - Modern Attendance Management System
 
-## Getting Started
+A comprehensive attendance management system built with Next.js 14, featuring role-based access control, QR code-based attendance tracking, and geolocation verification.
 
-First, run the development server:
+## 🚀 Features
 
+- **Modern Tech Stack**: Built with Next.js 14 using the App Router
+- **Authentication**: Role-based access control (Admin/User)
+- **QR Code Integration**: Generate and scan QR codes for attendance
+- **Geolocation**: Location-based attendance verification
+- **Real-time Updates**: Instant attendance status updates
+- **Dark Mode**: Beautiful dark theme UI
+- **Responsive Design**: Works on all devices
+- **Toast Notifications**: User-friendly notifications
+
+## 🛠 Tech Stack
+
+- **Frontend Framework**: Next.js 14
+- **Styling**: Tailwind CSS
+- **State Management**: React Context
+- **Authentication**: JWT with HTTP-only cookies
+- **UI Components**: 
+  - Framer Motion (animations)
+  - React Icons
+  - React Hot Toast (notifications)
+- **QR Code**: 
+  - html5-qrcode (scanning)
+  - qrcode.react (generation)
+
+## 📁 Project Structure
+
+```
+frontend/
+├── app/
+│   ├── (authenticated)/    # Protected routes
+│   │   ├── admin/         # Admin-only routes
+│   │   ├── dashboard/     # User dashboard
+│   │   └── settings/      # User settings
+│   ├── (public)/          # Public routes
+│   │   ├── auth/          # Authentication pages
+│   │   └── layout.jsx     # Public layout
+│   ├── api/               # API routes
+│   └── context/           # React contexts
+├── components/            # Reusable components
+├── hooks/                # Custom hooks
+└── public/              # Static assets
+```
+
+## 🚦 Getting Started
+
+1. **Clone the repository**
+```bash
+git clone <repository-url>
+cd ATTENDANCE-SYSTEM/frontend
+```
+
+2. **Install dependencies**
+```bash
+npm install
+# or
+yarn install
+```
+
+3. **Set up environment variables**
+Create a `.env.local` file:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5000/api
+```
+
+4. **Run the development server**
 ```bash
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## 🔐 Authentication
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The system supports two types of users:
+- **Administrators**: Full system access
+- **Users**: Limited access for attendance marking
 
-## Learn More
+Authentication routes:
+- `/auth/login` - User login
+- `/auth/login/admin` - Admin login
+- `/auth/register` - User registration
+- `/auth/register/admin` - Admin registration
 
-To learn more about Next.js, take a look at the following resources:
+## 📱 Features in Detail
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### QR Code Attendance
+- Admins can generate unique QR codes
+- Users can scan QR codes to mark attendance
+- Geolocation verification ensures presence
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Geolocation
+- Automatic location detection
+- Distance calculation from attendance point
+- Location verification before marking attendance
 
-## Deploy on Vercel
+### Role-based Access
+- Admin Dashboard
+  - User management
+  - Attendance reports
+  - Organization settings
+- User Dashboard
+  - Attendance marking
+  - History view
+  - Profile management
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🎨 UI/UX Features
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Responsive design for all screen sizes
+- Dark mode optimized
+- Smooth animations with Framer Motion
+- Toast notifications for user feedback
+- Loading states and error handling
+- Clean and modern interface
+
+## 🔧 Configuration
+
+The project uses various configuration files:
+- `next.config.js` - Next.js configuration
+- `tailwind.config.js` - Tailwind CSS configuration
+- `jsconfig.json` - JavaScript path aliases
+
+## 📚 API Documentation
+
+The frontend communicates with a backend API:
+- Authentication endpoints
+- User management
+- Attendance tracking
+- Organization management
+- Analytics and reporting
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.

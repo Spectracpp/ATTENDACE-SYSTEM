@@ -6,8 +6,10 @@ export async function POST(request) {
     const body = await request.json();
     const { email, password, role } = body;
 
+    console.log('Login attempt:', { email, role });
+
     // Make a request to your backend API
-    const response = await fetch('http://localhost:5000/api/auth/login', {
+    const apiResponse = await fetch('http://localhost:5000/api/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -15,33 +17,37 @@ export async function POST(request) {
       body: JSON.stringify({ email, password, role }),
     });
 
+    console.log('Backend response status:', apiResponse.status);
+
     // Check if response is ok before trying to parse JSON
-    if (!response.ok) {
-      const errorText = await response.text();
+    if (!apiResponse.ok) {
+      const errorText = await apiResponse.text();
       try {
         const errorData = JSON.parse(errorText);
         return NextResponse.json(
           { message: errorData.message || 'Login failed' },
-          { status: response.status }
+          { status: apiResponse.status }
         );
       } catch (e) {
         return NextResponse.json(
           { message: 'Login failed: ' + errorText },
-          { status: response.status }
+          { status: apiResponse.status }
         );
       }
     }
 
-    const data = await response.json();
+    const data = await apiResponse.json();
+    console.log('Login successful, user data:', data.user);
     
     // Create response with the data
-    const response = NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       user: data.user,
+      token: data.token // Include token in response for debugging
     });
 
     // Set cookies for token and role
-    response.cookies.set({
+    res.cookies.set({
       name: 'token',
       value: data.token,
       httpOnly: true,
@@ -50,7 +56,7 @@ export async function POST(request) {
       path: '/',
     });
 
-    response.cookies.set({
+    res.cookies.set({
       name: 'role',
       value: data.user.role,
       httpOnly: true,
@@ -59,7 +65,7 @@ export async function POST(request) {
       path: '/',
     });
 
-    return response;
+    return res;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(

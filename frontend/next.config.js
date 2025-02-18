@@ -4,16 +4,20 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:5000/api/:path*'
-      }
+        destination: 'http://localhost:5000/api/:path*',
+      },
     ];
-  },
-  images: {
-    domains: ['localhost'],
   },
   env: {
     NEXT_PUBLIC_API_URL: 'http://localhost:5000/api'
-  }
+  },
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': __dirname,
+    };
+    return config;
+  },
 };
 
 module.exports = nextConfig;
