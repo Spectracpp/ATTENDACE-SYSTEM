@@ -57,17 +57,9 @@ export default function Home() {
   return (
     <div className="bg-black min-h-screen">
       <Header />
-      <main className="pt-16">
+      <main>
         {/* Hero Section */}
-        <div className="relative isolate overflow-hidden">
-          {/* Background gradient */}
-          <div 
-            className="absolute inset-0 -z-10" 
-            style={{
-              background: 'radial-gradient(circle at top, rgba(59, 130, 246, 0.1), transparent 70%)',
-            }}
-          />
-
+        <div className="relative">
           <div className="mx-auto max-w-7xl px-6 pb-24 pt-10 sm:pb-32 lg:flex lg:px-8 lg:py-40">
             <div className="flex flex-col lg:flex-row items-center justify-between gap-16">
               {/* Left side - Main content */}
@@ -100,7 +92,10 @@ export default function Home() {
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-8 mt-16">
                   {stats.map((stat, index) => (
-                    <div key={index} className="border border-gray-800 rounded-lg p-4 bg-black/50 backdrop-blur-sm">
+                    <div 
+                      key={index} 
+                      className="border border-gray-800 rounded-lg p-4 bg-black/50 backdrop-blur-sm hover:bg-gray-900/50 transition-colors"
+                    >
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-2xl">{stat.icon}</span>
                         <span className="text-2xl font-bold text-white">{stat.value}</span>
@@ -123,7 +118,7 @@ export default function Home() {
                     {popularRewards.map((reward, index) => (
                       <div 
                         key={index}
-                        className="flex items-center justify-between p-4 rounded-lg bg-black/50 border border-gray-800 hover:border-gray-700 transition-colors"
+                        className="flex items-center justify-between p-4 rounded-lg bg-black/50 border border-gray-800 hover:border-gray-700 hover:bg-gray-900/50 transition-colors"
                       >
                         <div className="flex items-center gap-4">
                           <div className="p-3 rounded-lg bg-gray-800">

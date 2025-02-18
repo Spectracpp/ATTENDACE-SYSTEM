@@ -13,7 +13,7 @@ const { rateLimiter } = require('../middleware/rateLimiter');
  */
 router.post('/register', rateLimiter, async (req, res) => {
   try {
-    const { name, email, password, phone, employeeId, role, department, adminCode } = req.body;
+    const { name, email, password, phone, employeeId, role, department, registrationCode } = req.body;
     console.log('Registration attempt:', { email, role });
 
     // Validate input
@@ -34,14 +34,14 @@ router.post('/register', rateLimiter, async (req, res) => {
 
     // Additional validation for admin registration
     if (role === 'admin') {
-      if (!adminCode) {
+      if (!registrationCode) {
         return res.status(400).json({
           success: false,
           message: 'Admin registration code is required'
         });
       }
 
-      if (adminCode !== process.env.ADMIN_REGISTRATION_CODE) {
+      if (registrationCode !== process.env.ADMIN_REGISTRATION_CODE) {
         return res.status(400).json({
           success: false,
           message: 'Invalid admin registration code'
@@ -225,34 +225,24 @@ router.post('/login', rateLimiter, async (req, res) => {
 
 /**
  * @route GET /api/auth/verify
- * @desc Verify user token
+ * @desc Verify user token and return user data
  * @access Private
  */
 router.get('/verify', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).select('-password');
+    const user = await User.findById(req.user.id).select('-password');
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
-
-    res.json({
-      success: true,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        phone: user.phone
-      }
-    });
+    res.json(user);
   } catch (error) {
-    console.error('Token verification error:', error);
+    console.error('Verify error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error verifying token'
+      message: 'Server error'
     });
   }
 });

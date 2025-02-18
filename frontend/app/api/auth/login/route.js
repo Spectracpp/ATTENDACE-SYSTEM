@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 export async function POST(request) {
   try {
@@ -32,7 +33,33 @@ export async function POST(request) {
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    
+    // Create response with the data
+    const response = NextResponse.json({
+      success: true,
+      user: data.user,
+    });
+
+    // Set cookies for token and role
+    response.cookies.set({
+      name: 'token',
+      value: data.token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    response.cookies.set({
+      name: 'role',
+      value: data.user.role,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    return response;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(

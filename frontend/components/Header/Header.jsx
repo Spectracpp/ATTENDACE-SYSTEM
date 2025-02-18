@@ -11,13 +11,13 @@ const Header = () => {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const handleLogout = async () => {
-    await logout();
-    router.push("/login");
+  const handleLogout = () => {
+    logout();
+    router.push("/auth/login/user");
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 bg-black/90 backdrop-blur-md border-b border-gray-800 z-50">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-black border-b border-gray-800">
       <nav className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
           <LogoWithText height={32} animated={false} />
@@ -65,7 +65,7 @@ const Header = () => {
             <>
               <Link
                 href="/auth/login"
-                className="px-4 py-2 rounded-lg text-[#00f2ea] border border-[#00f2ea] hover:bg-[#00f2ea] hover:text-black transition-colors"
+                className="text-gray-300 hover:text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
               >
                 Login
               </Link>
@@ -158,14 +158,14 @@ const Header = () => {
               ) : (
                 <>
                   <Link
-                    href="/login"
-                    className="px-4 py-2 rounded-lg text-[#00f2ea] border border-[#00f2ea] hover:bg-[#00f2ea] hover:text-black transition-colors"
+                    href="/auth/login/user"
+                    className="text-gray-300 hover:text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     Login
                   </Link>
                   <Link
-                    href="/register"
+                    href="/auth/register"
                     className="px-4 py-2 rounded-lg bg-[#00f2ea] text-black hover:bg-[#00d8d8] transition-colors"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >

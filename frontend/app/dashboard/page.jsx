@@ -6,7 +6,7 @@ import { Html5QrcodeScanner } from 'html5-qrcode';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import QRCodeScanner from '../components/QRCodeScanner';
+import QRCodeScanner from '../../components/QRCodeScanner';
 import useGeolocation from '../hooks/useGeolocation';
 
 export default function UserDashboard() {

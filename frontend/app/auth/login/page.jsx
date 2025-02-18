@@ -34,9 +34,15 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await login(formData.email, formData.password, formData.rememberMe);
+      const userData = await login(formData.email, formData.password, formData.rememberMe);
       toast.success('Login successful!');
-      router.push('/dashboard');
+      
+      // Redirect based on user role
+      if (userData.role === 'admin') {
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err) {
       console.error('Login error:', err);
       setError(err.message || 'Login failed');

@@ -46,7 +46,7 @@ export default function AdminRegisterPage() {
       }
 
       toast.success('Admin registration successful! Please log in.');
-      router.push('/auth/login/admin');
+      router.push('/auth/admin/login');
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -197,7 +197,7 @@ export default function AdminRegisterPage() {
                 <p className="text-gray-400">
                   Already have an admin account?{' '}
                   <Link
-                    href="/auth/login/admin"
+                    href="/auth/admin/login"
                     className="text-[#00f2ea] hover:text-[#00d8d8] transition-colors"
                   >
                     Sign in

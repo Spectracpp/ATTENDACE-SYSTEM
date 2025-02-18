@@ -9,7 +9,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const router = useRouter();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
     checkUser();
@@ -47,7 +47,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const register = async ({ name, email, password, phone, employeeId }) => {
+  const register = async ({ name, email, password, phone, employeeId, role, adminCode, department }) => {
     try {
       if (!name || !email || !password || !phone || !employeeId) {
         throw new Error('All fields are required');
@@ -63,7 +63,10 @@ export function AuthProvider({ children }) {
           email,
           password,
           phone,
-          employeeId
+          employeeId,
+          role,
+          registrationCode: adminCode,
+          department
         }),
       });
 
@@ -117,7 +120,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('token');
     sessionStorage.removeItem('token');
     setUser(null);
-    router.push('/auth/login');
+    router.push('/');
   };
 
   const value = {
@@ -132,7 +135,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 }

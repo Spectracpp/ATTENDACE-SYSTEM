@@ -45,6 +45,12 @@ export default function AdminRegister() {
       return;
     }
 
+    if (!formData.adminCode) {
+      toast.error('Admin registration code is required');
+      setLoading(false);
+      return;
+    }
+
     try {
       await register(formData);
       toast.success('Registration successful! Please log in.');
