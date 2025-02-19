@@ -30,7 +30,8 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Employee ID is required'],
     trim: true,
     unique: true,
-    index: true
+    index: true,
+    validateBeforeSave: false
   },
   role: {
     type: String,
@@ -65,15 +66,38 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  studentId: {
+    type: String,
+    trim: true,
+    sparse: true
+  },
+  course: {
+    type: String,
+    trim: true
+  },
+  semester: {
+    type: Number,
+    min: 1,
+    max: 8
+  },
+  department: {
+    type: String,
+    trim: true
+  },
   isActive: {
     type: Boolean,
     default: true
   },
   lastLogin: {
     type: Date
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  versionKey: '_v'
 });
 
 // Hash password before saving
@@ -114,6 +138,7 @@ userSchema.methods.hasOrganizationPermission = function(organizationId, required
 userSchema.methods.toJSON = function() {
   const user = this.toObject();
   delete user.password;
+  delete user.__v;
   return user;
 };
 

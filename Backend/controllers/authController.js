@@ -15,12 +15,31 @@ const generateToken = (user) => {
 };
 
 const register = async (userData) => {
-  const { email, password, name, role, registrationCode, phone, employeeId, department } = userData;
+  const {
+    email,
+    password,
+    name,
+    role,
+    registrationCode,
+    phone,
+    employeeId,
+    department,
+    studentId,
+    course,
+    semester
+  } = userData;
 
   // Check if user already exists
-  const existingUser = await User.findOne({ email });
+  const existingUser = await User.findOne({
+    $or: [
+      { email },
+      { employeeId },
+      { studentId: studentId || null }
+    ]
+  });
+  
   if (existingUser) {
-    throw new Error('User already exists with this email');
+    throw new Error('User already exists with this email, employee ID, or student ID');
   }
 
   // Validate admin registration
@@ -31,30 +50,39 @@ const register = async (userData) => {
     if (registrationCode !== process.env.ADMIN_REGISTRATION_CODE) {
       throw new Error('Invalid admin registration code');
     }
+    if (!department) {
+      throw new Error('Department is required for admin registration');
+    }
+  }
+
+  // Validate semester if provided
+  if (semester && (semester < 1 || semester > 8)) {
+    throw new Error('Semester must be between 1 and 8');
   }
 
   // Hash password
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  // Create user
+  // Create user with all fields
   const user = new User({
-    email,
+    email: email.toLowerCase(),
     password: hashedPassword,
     name,
     role: role || 'user',
     phone,
     employeeId,
-    department
+    department,
+    studentId,
+    course,
+    semester,
+    isActive: true,
+    rewardPoints: 0,
+    createdAt: new Date()
   });
 
   await user.save();
-
-  // Remove password from response
-  const userResponse = user.toObject();
-  delete userResponse.password;
-
-  return userResponse;
+  return user;
 };
 
 const login = async ({ email, password }) => {

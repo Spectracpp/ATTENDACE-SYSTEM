@@ -47,12 +47,21 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const register = async ({ name, email, password, phone, employeeId, role, adminCode, department }) => {
+  const register = async ({
+    name,
+    email,
+    password,
+    phone,
+    employeeId,
+    role,
+    adminCode,
+    department,
+    studentId,
+    course,
+    semester
+  }) => {
     try {
-      if (!name || !email || !password || !phone || !employeeId) {
-        throw new Error('All fields are required');
-      }
-
+      setError(null);
       const response = await fetch(`${apiUrl}/auth/register`, {
         method: 'POST',
         headers: {
@@ -66,7 +75,10 @@ export function AuthProvider({ children }) {
           employeeId,
           role,
           registrationCode: adminCode,
-          department
+          department,
+          studentId,
+          course,
+          semester: semester ? parseInt(semester) : undefined
         }),
       });
 
@@ -76,7 +88,10 @@ export function AuthProvider({ children }) {
         throw new Error(data.message || 'Registration failed');
       }
 
-      return data;
+      const { token, user: userData } = data;
+      sessionStorage.setItem('token', token);
+      setUser(userData);
+      return userData;
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
@@ -102,13 +117,24 @@ export function AuthProvider({ children }) {
 
       const { token, user: userData } = data;
 
+      // Store user data with all fields
       if (rememberMe) {
         localStorage.setItem('token', token);
       } else {
         sessionStorage.setItem('token', token);
       }
 
-      setUser(userData);
+      setUser({
+        ...userData,
+        studentId: userData.studentId,
+        course: userData.course,
+        semester: userData.semester,
+        rewardPoints: userData.rewardPoints,
+        isActive: userData.isActive,
+        createdAt: userData.createdAt,
+        lastLogin: userData.lastLogin
+      });
+      
       return userData;
     } catch (error) {
       setError(error.message);

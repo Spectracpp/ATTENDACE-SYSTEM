@@ -13,10 +13,22 @@ const { rateLimiter } = require('../middleware/rateLimiter');
  */
 router.post('/register', rateLimiter, async (req, res) => {
   try {
-    const { name, email, password, phone, employeeId, role, department, registrationCode } = req.body;
+    const {
+      name,
+      email,
+      password,
+      phone,
+      employeeId,
+      role,
+      department,
+      registrationCode,
+      studentId,
+      course,
+      semester
+    } = req.body;
     console.log('Registration attempt:', { email, role });
 
-    // Validate input
+    // Validate required fields
     if (!name || !email || !password || !phone || !employeeId) {
       return res.status(400).json({
         success: false,
@@ -56,6 +68,14 @@ router.post('/register', rateLimiter, async (req, res) => {
       }
     }
 
+    // Validate semester if provided
+    if (semester && (semester < 1 || semester > 8)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Semester must be between 1 and 8'
+      });
+    }
+
     // Check if user exists
     const existingUser = await User.findOne({
       $or: [
@@ -73,8 +93,7 @@ router.post('/register', rateLimiter, async (req, res) => {
       });
     }
 
-    // Create user
-    console.log('Creating user with password:', password);
+    // Create new user with all fields
     const user = new User({
       name,
       email: email.toLowerCase(),
@@ -83,7 +102,12 @@ router.post('/register', rateLimiter, async (req, res) => {
       employeeId,
       role: role || 'user',
       department,
-      isActive: true
+      studentId,
+      course,
+      semester,
+      isActive: true,
+      rewardPoints: 0,
+      createdAt: new Date()
     });
 
     // Save user
@@ -108,7 +132,13 @@ router.post('/register', rateLimiter, async (req, res) => {
         role: user.role,
         employeeId: user.employeeId,
         phone: user.phone,
-        ...(user.role === 'admin' && { department: user.department })
+        studentId: user.studentId,
+        course: user.course,
+        semester: user.semester,
+        rewardPoints: user.rewardPoints,
+        department: user.department,
+        isActive: user.isActive,
+        createdAt: user.createdAt
       }
     });
   } catch (error) {
@@ -187,9 +217,15 @@ router.post('/login', rateLimiter, async (req, res) => {
       });
     }
 
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save();
+    // Update lastLogin without triggering validation
+    await User.findByIdAndUpdate(
+      user._id,
+      { $set: { lastLogin: new Date() } },
+      { 
+        new: true,
+        runValidators: false  // Prevent validation during update
+      }
+    );
 
     // Generate token
     const token = jwt.sign(
@@ -210,7 +246,13 @@ router.post('/login', rateLimiter, async (req, res) => {
         role: user.role,
         employeeId: user.employeeId,
         phone: user.phone,
-        ...(user.role === 'admin' && { department: user.department }),
+        studentId: user.studentId,
+        course: user.course,
+        semester: user.semester,
+        rewardPoints: user.rewardPoints,
+        department: user.department,
+        isActive: user.isActive,
+        createdAt: user.createdAt,
         lastLogin: user.lastLogin
       }
     });

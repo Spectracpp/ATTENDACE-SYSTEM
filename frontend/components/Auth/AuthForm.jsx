@@ -21,12 +21,18 @@ const AuthForm = ({ type, role, onSubmit }) => {
     email: '',
     password: '',
     name: type === 'signup' ? '' : undefined,
-    employeeId: type === 'signup' && role === 'user' ? '' : undefined,
-    department: type === 'signup' && role === 'user' ? '' : undefined,
+    phone: type === 'signup' ? '' : undefined,
+    employeeId: type === 'signup' ? '' : undefined,
+    department: type === 'signup' ? '' : undefined,
+    studentId: type === 'signup' ? '' : undefined,
+    course: type === 'signup' ? '' : undefined,
+    semester: type === 'signup' ? '' : undefined,
+    adminCode: type === 'signup' && role === 'admin' ? '' : undefined,
   });
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showStudentFields, setShowStudentFields] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,9 +49,10 @@ const AuthForm = ({ type, role, onSubmit }) => {
   };
 
   const handleChange = (e) => {
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     setFormData(prev => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [e.target.name]: value
     }));
   };
 
@@ -68,38 +75,27 @@ const AuthForm = ({ type, role, onSubmit }) => {
   ];
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="min-h-screen flex flex-col md:flex-row">
       {/* Left side - Form */}
-      <motion.div 
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full lg:w-1/2 flex items-center justify-center p-8 lg:p-12"
-      >
-        <div className="w-full max-w-md space-y-8">
+      <div className="flex-1 flex items-center justify-center p-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md space-y-8"
+        >
           <div className="text-center">
-            <motion.h2 
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent"
-            >
-              {type === 'login' ? 'Welcome Back' : 'Join AttendEase'}
-            </motion.h2>
-            <p className="mt-2 text-gray-400">
-              {type === 'login' 
-                ? `Sign in to your ${role} account` 
-                : `Create your ${role} account`}
+            <h2 className="mt-6 text-3xl font-bold text-white">
+              {type === 'login' ? 'Welcome back!' : 'Create your account'}
+            </h2>
+            <p className="mt-2 text-sm text-gray-300">
+              {type === 'login' ? "Don't have an account? " : 'Already have an account? '}
+              <Link href={type === 'login' ? `/auth/signup/${role}` : `/auth/login/${role}`} className="text-primary hover:text-primary/80">
+                {type === 'login' ? 'Sign up' : 'Log in'}
+              </Link>
             </p>
           </div>
 
-          <motion.form 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            onSubmit={handleSubmit} 
-            className="mt-8 space-y-6"
-          >
+          <form onSubmit={handleSubmit} className="mt-8 space-y-6">
             {type === 'signup' && (
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-300">
@@ -110,17 +106,16 @@ const AuthForm = ({ type, role, onSubmit }) => {
                   name="name"
                   type="text"
                   required
-                  value={formData.name}
+                  value={formData.name || ''}
                   onChange={handleChange}
-                  className="mt-1 block w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-primary focus:border-primary transition-colors"
-                  placeholder="John Doe"
+                  className="mt-1 block w-full rounded-md bg-white/5 border border-white/10 text-white px-3 py-2 focus:border-primary focus:ring-primary"
                 />
               </div>
             )}
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-300">
-                Email Address
+                Email address
               </label>
               <input
                 id="email"
@@ -129,8 +124,7 @@ const AuthForm = ({ type, role, onSubmit }) => {
                 required
                 value={formData.email}
                 onChange={handleChange}
-                className="mt-1 block w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-primary focus:border-primary transition-colors"
-                placeholder="you@example.com"
+                className="mt-1 block w-full rounded-md bg-white/5 border border-white/10 text-white px-3 py-2 focus:border-primary focus:ring-primary"
               />
             </div>
 
@@ -145,13 +139,27 @@ const AuthForm = ({ type, role, onSubmit }) => {
                 required
                 value={formData.password}
                 onChange={handleChange}
-                className="mt-1 block w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-primary focus:border-primary transition-colors"
-                placeholder="••••••••"
+                className="mt-1 block w-full rounded-md bg-white/5 border border-white/10 text-white px-3 py-2 focus:border-primary focus:ring-primary"
               />
             </div>
 
-            {type === 'signup' && role === 'user' && (
+            {type === 'signup' && (
               <>
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-gray-300">
+                    Phone Number
+                  </label>
+                  <input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    required
+                    value={formData.phone || ''}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-md bg-white/5 border border-white/10 text-white px-3 py-2 focus:border-primary focus:ring-primary"
+                  />
+                </div>
+
                 <div>
                   <label htmlFor="employeeId" className="block text-sm font-medium text-gray-300">
                     Employee ID
@@ -161,10 +169,9 @@ const AuthForm = ({ type, role, onSubmit }) => {
                     name="employeeId"
                     type="text"
                     required
-                    value={formData.employeeId}
+                    value={formData.employeeId || ''}
                     onChange={handleChange}
-                    className="mt-1 block w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-primary focus:border-primary transition-colors"
-                    placeholder="EMP123"
+                    className="mt-1 block w-full rounded-md bg-white/5 border border-white/10 text-white px-3 py-2 focus:border-primary focus:ring-primary"
                   />
                 </div>
 
@@ -172,114 +179,134 @@ const AuthForm = ({ type, role, onSubmit }) => {
                   <label htmlFor="department" className="block text-sm font-medium text-gray-300">
                     Department
                   </label>
-                  <select
+                  <input
                     id="department"
                     name="department"
-                    required
-                    value={formData.department}
+                    type="text"
+                    value={formData.department || ''}
                     onChange={handleChange}
-                    className="mt-1 block w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:ring-primary focus:border-primary transition-colors"
-                  >
-                    <option value="">Select Department</option>
-                    <option value="IT">IT</option>
-                    <option value="HR">HR</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Marketing">Marketing</option>
-                    <option value="Operations">Operations</option>
-                  </select>
+                    className="mt-1 block w-full rounded-md bg-white/5 border border-white/10 text-white px-3 py-2 focus:border-primary focus:ring-primary"
+                  />
                 </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    id="showStudentFields"
+                    name="showStudentFields"
+                    type="checkbox"
+                    checked={showStudentFields}
+                    onChange={(e) => setShowStudentFields(e.target.checked)}
+                    className="rounded bg-white/5 border-white/10 text-primary focus:ring-primary"
+                  />
+                  <label htmlFor="showStudentFields" className="text-sm text-gray-300">
+                    I am also a student
+                  </label>
+                </div>
+
+                {showStudentFields && (
+                  <>
+                    <div>
+                      <label htmlFor="studentId" className="block text-sm font-medium text-gray-300">
+                        Student ID
+                      </label>
+                      <input
+                        id="studentId"
+                        name="studentId"
+                        type="text"
+                        value={formData.studentId || ''}
+                        onChange={handleChange}
+                        className="mt-1 block w-full rounded-md bg-white/5 border border-white/10 text-white px-3 py-2 focus:border-primary focus:ring-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="course" className="block text-sm font-medium text-gray-300">
+                        Course
+                      </label>
+                      <input
+                        id="course"
+                        name="course"
+                        type="text"
+                        value={formData.course || ''}
+                        onChange={handleChange}
+                        className="mt-1 block w-full rounded-md bg-white/5 border border-white/10 text-white px-3 py-2 focus:border-primary focus:ring-primary"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="semester" className="block text-sm font-medium text-gray-300">
+                        Semester
+                      </label>
+                      <select
+                        id="semester"
+                        name="semester"
+                        value={formData.semester || ''}
+                        onChange={handleChange}
+                        className="mt-1 block w-full rounded-md bg-white/5 border border-white/10 text-white px-3 py-2 focus:border-primary focus:ring-primary"
+                      >
+                        <option value="">Select Semester</option>
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                          <option key={num} value={num}>Semester {num}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {role === 'admin' && (
+                  <div>
+                    <label htmlFor="adminCode" className="block text-sm font-medium text-gray-300">
+                      Admin Registration Code
+                    </label>
+                    <input
+                      id="adminCode"
+                      name="adminCode"
+                      type="text"
+                      required
+                      value={formData.adminCode || ''}
+                      onChange={handleChange}
+                      className="mt-1 block w-full rounded-md bg-white/5 border border-white/10 text-white px-3 py-2 focus:border-primary focus:ring-primary"
+                    />
+                  </div>
+                )}
               </>
             )}
 
             {error && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-red-500 text-sm text-center"
-              >
+              <div className="text-red-500 text-sm mt-2">
                 {error}
-              </motion.div>
+              </div>
             )}
 
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              type="submit"
-              disabled={loading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 transition-all duration-200"
-            >
-              {loading ? (
-                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                type === 'login' ? 'Sign In' : 'Create Account'
-              )}
-            </motion.button>
-
-            <div className="text-center text-sm">
-              <span className="text-gray-400">
-                {type === 'login' ? "Don't have an account? " : "Already have an account? "}
-              </span>
-              <Link 
-                href={type === 'login' ? `/auth/signup/${role}` : `/auth/login/${role}`}
-                className="text-primary hover:text-primary/80 font-medium transition-colors"
+            <div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {type === 'login' ? 'Sign up' : 'Sign in'}
-              </Link>
+                {loading ? 'Processing...' : type === 'login' ? 'Sign in' : 'Create account'}
+              </button>
             </div>
-          </motion.form>
-        </div>
-      </motion.div>
+          </form>
+        </motion.div>
+      </div>
 
       {/* Right side - Features */}
-      <motion.div 
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5 }}
-        className="hidden lg:flex w-1/2 bg-gray-900 p-12 items-center justify-center"
-      >
-        <div className="max-w-lg space-y-8">
-          <div className="text-center mb-12">
-            <Image
-              src="/logo.png"
-              alt="AttendEase Logo"
-              width={150}
-              height={150}
-              className="mx-auto mb-6"
-            />
-            <h3 className="text-2xl font-bold text-white mb-4">
-              Streamline Your Attendance Management
-            </h3>
-            <p className="text-gray-400">
-              Join thousands of organizations that trust AttendEase for their attendance tracking needs
-            </p>
-          </div>
-
-          <div className="space-y-6">
-            {features.map((feature, index) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 + (index * 0.1) }}
-              >
-                <FeatureCard {...feature} />
-              </motion.div>
-            ))}
-          </div>
-
-          <div className="pt-8 border-t border-gray-800">
-            <p className="text-center text-gray-400 text-sm">
-              "AttendEase has transformed how we manage attendance. It's efficient, reliable, and user-friendly!"
-            </p>
-            <p className="text-center text-white font-medium mt-2">
-              - John Smith, HR Director
-            </p>
-          </div>
+      <div className="flex-1 bg-gradient-to-br from-primary/20 to-secondary/20 p-8 hidden md:flex md:flex-col md:justify-center">
+        <div className="max-w-md mx-auto space-y-6">
+          <h2 className="text-2xl font-bold text-white mb-8">Features</h2>
+          {features.map((feature, index) => (
+            <motion.div
+              key={feature.title}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 + (index * 0.1) }}
+            >
+              <FeatureCard {...feature} />
+            </motion.div>
+          ))}
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 };
