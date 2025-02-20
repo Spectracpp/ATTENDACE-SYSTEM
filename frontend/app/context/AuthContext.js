@@ -1,85 +1,131 @@
 'use client';
+
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
-const AuthContext = createContext({});
+const AuthContext = createContext(undefined);
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const router = useRouter();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
+  // Check for user session on mount
   useEffect(() => {
     checkUser();
   }, []);
 
   const checkUser = async () => {
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch(`${apiUrl}/auth/verify`, {
+      const response = await fetch('/api/auth/me', {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         }
       });
 
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
+      if (!response.ok) {
+        if (response.status === 401) {
+          setUser(null);
+          return;
+        }
+        throw new Error('Failed to fetch user data');
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.user) {
+        setUser(data.user);
       } else {
-        localStorage.removeItem('token');
-        sessionStorage.removeItem('token');
         setUser(null);
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
-      localStorage.removeItem('token');
-      sessionStorage.removeItem('token');
+      console.error('Error checking user session:', error);
       setUser(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const register = async ({
-    name,
-    email,
-    password,
-    phone,
-    employeeId,
-    role,
-    adminCode,
-    department,
-    studentId,
-    course,
-    semester
-  }) => {
+  const login = async (email, password, role) => {
     try {
-      setError(null);
-      const response = await fetch(`${apiUrl}/auth/register`, {
+      // Validate required fields
+      if (!email || !password || !role) {
+        throw new Error('Email, password and role are required');
+      }
+
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name,
-          email,
+        body: JSON.stringify({ 
+          email: email.toLowerCase().trim(),
           password,
-          phone,
-          employeeId,
-          role,
-          registrationCode: adminCode,
-          department,
-          studentId,
-          course,
-          semester: semester ? parseInt(semester) : undefined
+          role
         }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Invalid email or password');
+      }
+
+      if (data.success && data.user) {
+        setUser(data.user);
+        toast.success('Login successful!');
+        router.push(`/dashboard/${data.user.role}`);
+        return data;
+      } else {
+        throw new Error('Invalid response from server');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error(error.message || 'Login failed');
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Logout failed');
+      }
+
+      setUser(null);
+      router.push('/');
+      toast.success('Logged out successfully');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to logout');
+      throw error;
+    }
+  };
+
+  const register = async (userData) => {
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
       });
 
       const data = await response.json();
@@ -88,74 +134,25 @@ export function AuthProvider({ children }) {
         throw new Error(data.message || 'Registration failed');
       }
 
-      const { token, user: userData } = data;
-      sessionStorage.setItem('token', token);
-      setUser(userData);
-      return userData;
+      if (data.success && data.user) {
+        setUser(data.user);
+        toast.success('Registration successful!');
+        router.push(`/dashboard/${data.user.role}`);
+        return data;
+      }
     } catch (error) {
       console.error('Registration error:', error);
+      toast.error(error.message || 'Registration failed');
       throw error;
     }
-  };
-
-  const login = async (email, password, rememberMe = false) => {
-    try {
-      setError(null);
-      const response = await fetch(`${apiUrl}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: email.toLowerCase(), password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
-      }
-
-      const { token, user: userData } = data;
-
-      // Store user data with all fields
-      if (rememberMe) {
-        localStorage.setItem('token', token);
-      } else {
-        sessionStorage.setItem('token', token);
-      }
-
-      setUser({
-        ...userData,
-        studentId: userData.studentId,
-        course: userData.course,
-        semester: userData.semester,
-        rewardPoints: userData.rewardPoints,
-        isActive: userData.isActive,
-        createdAt: userData.createdAt,
-        lastLogin: userData.lastLogin
-      });
-      
-      return userData;
-    } catch (error) {
-      setError(error.message);
-      throw error;
-    }
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    sessionStorage.removeItem('token');
-    setUser(null);
-    router.push('/');
   };
 
   const value = {
     user,
     loading,
-    error,
-    register,
     login,
     logout,
+    register,
     checkUser
   };
 
@@ -164,8 +161,4 @@ export function AuthProvider({ children }) {
       {!loading && children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }

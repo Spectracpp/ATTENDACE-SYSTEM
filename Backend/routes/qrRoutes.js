@@ -199,7 +199,8 @@ router.get('/sessions',
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
-        .populate('createdBy', 'firstName lastName');
+        .populate('createdBy', 'name email')
+        .lean();
 
       const total = await QRSession.countDocuments(query);
 
@@ -207,17 +208,16 @@ router.get('/sessions',
         sessions,
         pagination: {
           total,
-          pages: Math.ceil(total / limit),
-          current: page,
-          perPage: limit
+          page: parseInt(page),
+          totalPages: Math.ceil(total / limit)
         }
       });
-
     } catch (error) {
       console.error('Error fetching QR sessions:', error);
-      res.status(500).json({ message: "Error fetching QR sessions" });
+      res.status(500).json({ message: 'Error fetching QR sessions' });
     }
-});
+  }
+);
 
 /**
  * @route GET /api/qr/stats

@@ -2,36 +2,54 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider } from './context/AuthContext';
+import { OrganizationProvider } from './context/OrganizationContext';
+import { theme } from '../theme/theme';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 export function Providers({ children }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Toaster 
-          position="top-right"
-          toastOptions={{
-            duration: 5000,
-            style: {
-              background: '#333',
-              color: '#fff',
-            },
-            success: {
-              style: {
-                background: '#22c55e',
-              },
-            },
-            error: {
-              style: {
-                background: '#ef4444',
-              },
-            },
-          }}
-        />
-        {children}
-      </AuthProvider>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AuthProvider>
+          <OrganizationProvider>
+            <Toaster 
+              position="top-right"
+              toastOptions={{
+                duration: 5000,
+                style: {
+                  background: '#fff',
+                  color: '#333',
+                },
+                success: {
+                  style: {
+                    background: '#4caf50',
+                    color: '#fff',
+                  },
+                },
+                error: {
+                  style: {
+                    background: '#f44336',
+                    color: '#fff',
+                  },
+                },
+              }}
+            />
+            {children}
+          </OrganizationProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

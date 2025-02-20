@@ -1,19 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
 import useGeolocation from '../../hooks/useGeolocation';
 
+const QR_READER_ID = 'qr-reader-element';
+
 const QRCodeScanner = ({ organizationId, token }) => {
   const [scanning, setScanning] = useState(false);
   const { location } = useGeolocation();
-  const scannerRef = useRef(null);
+  const [scanner, setScanner] = useState(null);
 
   useEffect(() => {
     // Create scanner instance
-    scannerRef.current = new Html5QrcodeScanner(
-      'qr-reader',
+    const newScanner = new Html5QrcodeScanner(
+      QR_READER_ID,
       {
         fps: 10,
         qrbox: 250,
@@ -26,12 +28,13 @@ const QRCodeScanner = ({ organizationId, token }) => {
     );
 
     // Start scanner
-    scannerRef.current.render(handleScan, handleError);
+    newScanner.render(handleScan, handleError);
+    setScanner(newScanner);
 
     // Cleanup
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear();
+      if (newScanner) {
+        newScanner.clear();
       }
     };
   }, []);
@@ -90,7 +93,10 @@ const QRCodeScanner = ({ organizationId, token }) => {
           duration: 1.5
         }}
       >
-        <div id="qr-reader" style={{ width: '100%', height: '100%' }} />
+        <div 
+          id={QR_READER_ID}
+          style={{ width: '100%', height: '100%' }}
+        />
       </motion.div>
       <motion.p
         animate={{ opacity: scanning ? 1 : 0.7 }}

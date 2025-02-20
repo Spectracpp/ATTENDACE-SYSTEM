@@ -1,42 +1,80 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
-export async function GET(request) {
+export async function GET() {
   try {
-    const response = await fetch('http://localhost:5000/api/organization', {
+    const cookieStore = cookies();
+    const token = cookieStore.get('auth_token');
+
+    if (!token) {
+      return NextResponse.json(
+        { success: false, message: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+
+    const response = await fetch('http://localhost:5000/organization', {
       headers: {
-        'Authorization': `Bearer ${request.cookies.get('token')?.value}`,
+        'Authorization': `Bearer ${token.value}`,
       },
     });
 
     const data = await response.json();
-    return NextResponse.json(data);
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { success: false, message: data.message || 'Failed to fetch organizations' },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json({ success: true, organizations: data.organizations });
   } catch (error) {
-    console.error('Error fetching organization:', error);
+    console.error('Organization fetch error:', error);
     return NextResponse.json(
-      { message: 'Failed to fetch organization details' },
+      { success: false, message: 'Internal server error' },
       { status: 500 }
     );
   }
 }
 
-export async function PUT(request) {
+export async function POST(req) {
   try {
-    const body = await request.json();
-    const response = await fetch('http://localhost:5000/api/organization', {
-      method: 'PUT',
+    const cookieStore = cookies();
+    const token = cookieStore.get('auth_token');
+
+    if (!token) {
+      return NextResponse.json(
+        { success: false, message: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+
+    const body = await req.json();
+
+    const response = await fetch('http://localhost:5000/organization', {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${request.cookies.get('token')?.value}`,
+        'Authorization': `Bearer ${token.value}`,
       },
       body: JSON.stringify(body),
     });
 
     const data = await response.json();
-    return NextResponse.json(data);
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { success: false, message: data.message || 'Failed to create organization' },
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json({ success: true, organization: data.organization });
   } catch (error) {
-    console.error('Error updating organization:', error);
+    console.error('Organization creation error:', error);
     return NextResponse.json(
-      { message: 'Failed to update organization details' },
+      { success: false, message: 'Internal server error' },
       { status: 500 }
     );
   }

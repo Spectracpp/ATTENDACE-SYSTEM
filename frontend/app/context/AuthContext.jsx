@@ -17,21 +17,39 @@ export function AuthProvider({ children }) {
   }, []);
 
   const checkAuth = async () => {
-    console.log('Checking auth status...');
     try {
-      const response = await fetch('/api/auth/check', {
+      console.log('Checking authentication...');
+      const response = await fetch('/api/auth/me', {
+        method: 'GET',
         credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
       
-      console.log('Auth check response:', response.status);
+      if (!response.ok) {
+        console.log('Auth check failed:', response.status);
+        setUser(null);
+        // Only redirect if we're on a protected route
+        const path = window.location.pathname;
+        if (path.startsWith('/dashboard') || path.startsWith('/admin')) {
+          router.replace('/auth/login/user');
+        }
+        return;
+      }
+
+      const data = await response.json();
+      console.log('Auth check response:', data);
       
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Auth check successful, user:', data.user);
+      if (data.success) {
         setUser(data.user);
       } else {
-        console.log('Auth check failed, clearing user');
         setUser(null);
+        // Only redirect if we're on a protected route
+        const path = window.location.pathname;
+        if (path.startsWith('/dashboard') || path.startsWith('/admin')) {
+          router.replace('/auth/login/user');
+        }
       }
     } catch (error) {
       console.error('Auth check error:', error);
@@ -41,36 +59,34 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const login = async (credentials) => {
-    console.log('Attempting login...');
+  const login = async (email, password, role) => {
+    console.log('Attempting login...', { email, role });
+    
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(credentials),
+        body: JSON.stringify({ email, password, role }),
         credentials: 'include',
       });
 
-      console.log('Login response status:', response.status);
-      const data = await response.json();
-      console.log('Login response data:', data);
-
       if (!response.ok) {
+        const data = await response.json();
         throw new Error(data.message || 'Login failed');
       }
 
-      console.log('Setting user data:', data.user);
+      const data = await response.json();
+      console.log('Login response:', { success: data.success });
+
       setUser(data.user);
       toast.success('Login successful!');
 
-      // Use router.replace instead of push to avoid navigation issues
+      // Redirect based on role
       if (data.user.role === 'admin') {
-        console.log('Redirecting to admin dashboard...');
         router.replace('/admin/dashboard');
       } else {
-        console.log('Redirecting to user dashboard...');
         router.replace('/dashboard');
       }
 
@@ -82,23 +98,63 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const logout = async () => {
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Logout failed');
+      }
+
+      setUser(null);
+      router.replace('/auth/login/user');
+      toast.success('Logged out successfully');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Error during logout');
+    }
+  };
+
   const register = async (userData) => {
     try {
+      const { role, confirmPassword, ...registrationData } = userData;
+      
+      // Validate required fields before making the request
+      const requiredFields = ['name', 'email', 'password', 'phone'];
+      if (role === 'user') {
+        requiredFields.push('studentId', 'course', 'semester', 'department');
+      } else if (role === 'admin') {
+        requiredFields.push('organizationName');
+      }
+
+      const missingFields = requiredFields.filter(field => !registrationData[field]?.trim());
+      if (missingFields.length > 0) {
+        throw new Error(`Please fill in all required fields: ${missingFields.join(', ')}`);
+      }
+
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(userData),
+        body: JSON.stringify({ ...registrationData, role }),
+        credentials: 'include',
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
+        const data = await response.json();
         throw new Error(data.message || 'Registration failed');
       }
 
-      toast.success('Registration successful! Please login.');
+      const data = await response.json();
+      console.log('Registration response:', { success: data.success });
+
+      toast.success('Registration successful! Please log in.');
+      router.replace(`/auth/login/${role}`);
+
       return data;
     } catch (error) {
       console.error('Registration error:', error);
@@ -107,43 +163,13 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = async () => {
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      setUser(null);
-      toast.success('Logged out successfully');
-      router.replace('/auth/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast.error('Logout failed');
-    }
-  };
-
-  const value = {
-    user,
-    loading,
-    login,
-    register,
-    logout,
-    checkAuth,
-  };
-
-  console.log('AuthContext current state:', { user, loading });
-
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ user, loading, login, logout, register, checkAuth }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return useContext(AuthContext);
 }

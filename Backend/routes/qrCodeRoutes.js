@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const QRCode = require('../models/QRCode');
 const Organization = require('../models/Organization');
+const Attendance = require('../models/Attendance');
 const { auth } = require('../middleware/auth');
 const { qrCodeValidation } = require('../middleware/validate');
 const { rateLimiter } = require('../middleware/rateLimiter');
@@ -94,44 +95,29 @@ router.post('/scan/:organizationId',
       const { organizationId } = req.params;
       const { qrData, location } = req.body;
 
-      // Parse QR data
-      const qrInfo = JSON.parse(qrData);
-      
-      // Get organization
-      const organization = await Organization.findById(organizationId);
-      if (!organization) {
-        return res.status(404).json({ message: 'Organization not found' });
-      }
+      // Find and validate QR code
+      const qrCode = await QRCode.findOne({
+        organization: organizationId,
+        data: qrData,
+        validUntil: { $gt: new Date() }
+      });
 
-      // Check if user has permission
-      if (!organization.hasRole(req.user._id, 'member')) {
-        return res.status(403).json({ message: 'Insufficient permissions' });
-      }
-
-      // Get QR code
-      const qrCode = await QRCode.findById(qrInfo.id);
       if (!qrCode) {
-        return res.status(404).json({ message: 'QR code not found' });
+        return res.status(400).json({ message: 'Invalid or expired QR code' });
       }
 
-      // Verify QR code belongs to organization
-      if (qrCode.organization.toString() !== organizationId) {
-        return res.status(400).json({ message: 'Invalid QR code for this organization' });
-      }
+      // Check if already marked attendance
+      const existingAttendance = await Attendance.findOne({
+        user: req.user._id,
+        qrCode: qrCode._id,
+        createdAt: {
+          $gte: qrCode.validFrom,
+          $lte: qrCode.validUntil
+        }
+      });
 
-      // Check if QR code is expired
-      if (qrCode.isExpired()) {
-        return res.status(400).json({ message: 'QR code has expired' });
-      }
-
-      // Check if user has already scanned
-      if (!qrCode.settings.allowMultipleScans && qrCode.hasUserScanned(req.user._id)) {
-        return res.status(400).json({ message: 'You have already scanned this QR code' });
-      }
-
-      // Check if max scans reached
-      if (qrCode.hasReachedMaxScans()) {
-        return res.status(400).json({ message: 'Maximum scan limit reached' });
+      if (existingAttendance) {
+        return res.status(400).json({ message: 'Attendance already marked for this session' });
       }
 
       // Verify location if required
@@ -139,29 +125,129 @@ router.post('/scan/:organizationId',
         const distance = calculateDistance(
           qrCode.location.coordinates[1],
           qrCode.location.coordinates[0],
-          location.coordinates[1],
-          location.coordinates[0]
+          location.latitude,
+          location.longitude
         );
 
-        if (distance > qrCode.settings.locationRadius) {
-          return res.status(400).json({ 
-            message: 'You are too far from the QR code location',
-            distance,
-            maxDistance: qrCode.settings.locationRadius
-          });
+        if (distance > (qrCode.settings.maxDistance || 100)) {
+          return res.status(400).json({ message: 'Location verification failed' });
         }
       }
 
-      // Add scan
-      await qrCode.addScan(req.user._id, location);
+      // Record attendance
+      const attendance = new Attendance({
+        user: req.user._id,
+        organization: organizationId,
+        qrCode: qrCode._id,
+        location: location ? {
+          type: 'Point',
+          coordinates: [location.longitude, location.latitude]
+        } : undefined
+      });
+
+      await attendance.save();
 
       res.json({
-        message: 'QR code scanned successfully',
-        scan: qrCode.scans[qrCode.scans.length - 1]
+        message: 'Attendance marked successfully',
+        attendance
       });
     } catch (error) {
-      console.error('Scan QR code error:', error);
-      res.status(500).json({ message: 'Error scanning QR code' });
+      console.error('Error scanning QR code:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+});
+
+/**
+ * @route GET /api/qr/attendance/:organizationId
+ * @desc Get user's attendance records for an organization
+ * @access Private
+ */
+router.get('/attendance/:organizationId',
+  auth,
+  async (req, res) => {
+    try {
+      const { organizationId } = req.params;
+      const { startDate, endDate } = req.query;
+
+      // Validate organization access
+      const organization = await Organization.findById(organizationId);
+      if (!organization) {
+        return res.status(404).json({ message: 'Organization not found' });
+      }
+
+      // Build query
+      const query = {
+        organization: organizationId,
+        user: req.user._id
+      };
+
+      if (startDate && endDate) {
+        query.createdAt = {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate)
+        };
+      }
+
+      // Get attendance records
+      const attendance = await Attendance.find(query)
+        .sort({ createdAt: -1 })
+        .populate('qrCode', 'type validFrom validUntil')
+        .lean();
+
+      res.json(attendance);
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+});
+
+/**
+ * @route GET /api/qr/attendance/:organizationId/admin
+ * @desc Get all attendance records for an organization (admin only)
+ * @access Private (Admin)
+ */
+router.get('/attendance/:organizationId/admin',
+  auth,
+  async (req, res) => {
+    try {
+      const { organizationId } = req.params;
+      const { startDate, endDate, userId } = req.query;
+
+      // Validate organization and admin access
+      const organization = await Organization.findById(organizationId);
+      if (!organization) {
+        return res.status(404).json({ message: 'Organization not found' });
+      }
+
+      if (!organization.hasRole(req.user._id, 'admin')) {
+        return res.status(403).json({ message: 'Insufficient permissions' });
+      }
+
+      // Build query
+      const query = { organization: organizationId };
+      
+      if (userId) {
+        query.user = userId;
+      }
+
+      if (startDate && endDate) {
+        query.createdAt = {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate)
+        };
+      }
+
+      // Get attendance records
+      const attendance = await Attendance.find(query)
+        .sort({ createdAt: -1 })
+        .populate('user', 'name email employeeId')
+        .populate('qrCode', 'type validFrom validUntil')
+        .lean();
+
+      res.json(attendance);
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+      res.status(500).json({ message: 'Server error' });
     }
 });
 

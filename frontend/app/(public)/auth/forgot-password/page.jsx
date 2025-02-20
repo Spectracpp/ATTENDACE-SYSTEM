@@ -1,83 +1,95 @@
 'use client';
 import { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import LoadingSpinner from '../../../components/common/LoadingSpinner';
+import { useAuth } from '@/app/context/AuthContext';
+import LoadingSpinner from '@/components/common/LoadingSpinner';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const { requestPasswordReset } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
     setLoading(true);
+    setError('');
+    setMessage('');
 
     try {
-      await requestPasswordReset(email);
-      setSuccess('Password reset instructions have been sent to your email.');
-      setEmail('');
-    } catch (err) {
-      setError(err.message);
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to send reset email');
+      }
+
+      setMessage('Password reset instructions sent to your email');
+    } catch (error) {
+      setError(error.message || 'Failed to send reset email');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold gradient-text">Reset Password</h2>
-          <p className="mt-2 text-gray-400">
+    <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="max-w-md w-full space-y-8 p-8 bg-gray-900 rounded-lg shadow-lg">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-white">
+            Forgot Password
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-400">
             Enter your email address and we'll send you instructions to reset your password.
           </p>
         </div>
 
-        <div className="mt-8 cyber-border bg-accent-1/50 backdrop-blur-sm p-8">
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div>
+            <label htmlFor="email" className="sr-only">
+              Email address
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="appearance-none relative block w-full px-3 py-2 border border-gray-700 placeholder-gray-500 text-white rounded-md focus:outline-none focus:ring-[#00f2ea] focus:border-[#00f2ea] focus:z-10 sm:text-sm bg-gray-800"
+              placeholder="Email address"
+            />
+          </div>
+
           {error && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-500 text-red-500 rounded-lg">
-              {error}
-            </div>
+            <div className="text-red-500 text-sm text-center">{error}</div>
           )}
 
-          {success && (
-            <div className="mb-4 p-3 bg-green-500/20 border border-green-500 text-green-500 rounded-lg">
-              {success}
-            </div>
+          {message && (
+            <div className="text-green-500 text-sm text-center">{message}</div>
           )}
 
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
-                Email Address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full border border-primary/20 rounded-lg bg-background/50 text-gray-300 px-3 py-2 focus:ring-primary focus:border-primary"
-                placeholder="Enter your email"
-              />
-            </div>
-
+          <div>
             <button
               type="submit"
               disabled={loading}
-              className={`w-full flex justify-center py-3 px-4 cyber-border border border-transparent text-sm font-medium text-white bg-primary/20 hover:bg-primary/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all duration-300 ${
-                loading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-black bg-[#00f2ea] hover:bg-[#00d8d8] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#00f2ea] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? <LoadingSpinner /> : 'Send Reset Instructions'}
+              {loading ? (
+                <LoadingSpinner />
+              ) : (
+                'Send Reset Instructions'
+              )}
             </button>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
     </div>
   );

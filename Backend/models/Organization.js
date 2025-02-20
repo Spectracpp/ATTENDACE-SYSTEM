@@ -22,17 +22,6 @@ const organizationSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  location: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      default: 'Point'
-    },
-    coordinates: {
-      type: [Number],
-      default: [0, 0]
-    }
-  },
   address: {
     type: String,
     trim: true
@@ -46,54 +35,48 @@ const organizationSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  settings: {
-    maxQrScans: {
-      type: Number,
-      default: 100
-    },
-    allowMultipleScans: {
-      type: Boolean,
-      default: false
-    },
-    locationRadius: {
-      type: Number,
-      default: 100 // meters
-    }
-  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  members: [{
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    role: {
-      type: String,
-      enum: ['member', 'admin', 'owner'],
-      default: 'member'
-    },
-    joinedAt: {
-      type: Date,
-      default: Date.now
-    }
-  }],
+  members: {
+    type: [{
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      },
+      role: {
+        type: String,
+        enum: ['member', 'admin', 'owner'],
+        default: 'member'
+      },
+      joinedAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
+    default: [] // Initialize with empty array
+  },
   status: {
     type: String,
     enum: ['active', 'inactive', 'suspended'],
     default: 'active'
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-// Index for location-based queries
-organizationSchema.index({ location: '2dsphere' });
+// Virtual for member count
+organizationSchema.virtual('memberCount').get(function() {
+  return Array.isArray(this.members) ? this.members.length : 0;
+});
 
 // Method to check if a user has a specific role in the organization
 organizationSchema.methods.hasRole = function(userId, role) {
+  if (!Array.isArray(this.members)) return false;
   const member = this.members.find(m => m.user.toString() === userId.toString());
   if (!member) return false;
 
@@ -108,6 +91,9 @@ organizationSchema.methods.hasRole = function(userId, role) {
 
 // Method to add a member
 organizationSchema.methods.addMember = async function(userId, role = 'member') {
+  if (!Array.isArray(this.members)) {
+    this.members = [];
+  }
   if (!this.members.some(m => m.user.toString() === userId.toString())) {
     this.members.push({ user: userId, role });
     await this.save();
@@ -116,27 +102,26 @@ organizationSchema.methods.addMember = async function(userId, role = 'member') {
 
 // Method to remove a member
 organizationSchema.methods.removeMember = async function(userId) {
+  if (!Array.isArray(this.members)) {
+    this.members = [];
+    return;
+  }
   this.members = this.members.filter(m => m.user.toString() !== userId.toString());
   await this.save();
 };
 
 // Method to update member role
 organizationSchema.methods.updateMemberRole = async function(userId, newRole) {
+  if (!Array.isArray(this.members)) {
+    this.members = [];
+    return;
+  }
   const member = this.members.find(m => m.user.toString() === userId.toString());
   if (member) {
     member.role = newRole;
     await this.save();
   }
 };
-
-// Virtual for member count
-organizationSchema.virtual('memberCount').get(function() {
-  return this.members.length;
-});
-
-// Ensure virtuals are included in JSON
-organizationSchema.set('toJSON', { virtuals: true });
-organizationSchema.set('toObject', { virtuals: true });
 
 const Organization = mongoose.model('Organization', organizationSchema);
 

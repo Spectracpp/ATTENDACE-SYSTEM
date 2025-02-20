@@ -4,102 +4,373 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/emailService');
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 
-// Register User
+// Validation helpers
+const validateEmail = (email) => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+
+const validatePassword = (password) => {
+  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$/.test(password);
+};
+
+const validatePhone = (phone) => {
+  return /^\d{10}$/.test(phone.replace(/\D/g, ''));
+};
+
+// Register User/Admin
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, role, employeeId, department } = req.body;
+    const { 
+      name, 
+      email, 
+      password, 
+      phone, 
+      organizationName,
+      department,
+      studentId,
+      course,
+      semester,
+      role = 'user'
+    } = req.body;
 
-    // Check if user already exists
-    let user = await User.findOne({ email });
-    if (user) {
-      return res.status(400).json({ message: 'User already exists' });
+    console.log('\n=== Registration Debug Info ===');
+    console.log('1. Received registration request for:', { email, phone, studentId, role });
+
+    // Basic validation
+    if (!name || !email || !password || !phone || !organizationName || !department) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields',
+        missingFields: ['name', 'email', 'password', 'phone', 'organizationName', 'department'].filter(field => !req.body[field])
+      });
     }
 
-    // Create verification token
-    const verificationToken = jwt.sign(
-      { email },
-      process.env.JWT_SECRET,
-      { expiresIn: '1d' }
-    );
+    // Additional validation for students
+    if (role === 'user' && (!studentId || !course || !semester)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required student fields',
+        missingFields: ['studentId', 'course', 'semester'].filter(field => !req.body[field])
+      });
+    }
+
+    // Check for existing email
+    const emailExists = await User.findOne({ email: email.toLowerCase() });
+    console.log('2. Email check result:', emailExists ? 'Found' : 'Not found');
+
+    // Check for existing phone
+    const phoneExists = await User.findOne({ phone });
+    console.log('3. Phone check result:', phoneExists ? 'Found' : 'Not found');
+
+    // Check for existing student ID
+    let studentIdExists = null;
+    if (role === 'user' && studentId) {
+      studentIdExists = await User.findOne({
+        studentId,
+        organizationName,
+        role: 'user'
+      });
+      console.log('4. StudentId check result:', studentIdExists ? 'Found' : 'Not found');
+    }
+
+    // Log current database state
+    console.log('5. Current users in database:');
+    const allUsers = await User.find({}, { email: 1, phone: 1, studentId: 1, organizationName: 1, role: 1 });
+    console.log(JSON.stringify(allUsers, null, 2));
+
+    if (emailExists) {
+      console.log('Duplicate check failed - Email exists:', email);
+      return res.status(409).json({
+        success: false,
+        message: 'Email already registered',
+        field: 'email',
+        details: 'This email address is already associated with an account'
+      });
+    }
+
+    if (phoneExists) {
+      console.log('Duplicate check failed - Phone exists:', phone);
+      return res.status(409).json({
+        success: false,
+        message: 'Phone number already registered',
+        field: 'phone',
+        details: 'This phone number is already associated with an account'
+      });
+    }
+
+    if (studentIdExists) {
+      console.log('Duplicate check failed - Student ID exists:', { studentId, organizationName });
+      return res.status(409).json({
+        success: false,
+        message: 'Student ID already registered for this organization',
+        field: 'studentId',
+        details: 'This Student ID is already registered for this organization'
+      });
+    }
+
+    // If we get here, no duplicates were found
+    console.log('6. No duplicates found, proceeding with registration');
+
+    // Create user object
+    const user = new User({
+      name,
+      email: email.toLowerCase(),
+      password,
+      phone,
+      organizationName,
+      department,
+      role,
+      ...(role === 'user' && {
+        studentId,
+        course,
+        semester: parseInt(semester, 10)
+      })
+    });
+
+    // Save user
+    await user.save();
+    console.log('User saved successfully:', {
+      id: user._id,
+      email: user.email,
+      role: user.role,
+      organization: user.organizationName
+    });
 
     // Hash password
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    user.password = await bcrypt.hash(password, salt);
 
-    // Create user
-    user = new User({
-      name,
-      email,
-      password: hashedPassword,
-      role: role || 'user',
-      employeeId,
-      department,
-      verificationToken,
-    });
+    try {
+      await user.save();
+      console.log('Password saved successfully:', user._id);
+    } catch (saveError) {
+      console.error('Error saving password:', saveError);
+      throw saveError;
+    }
 
-    await user.save();
+    // Generate verification token
+    const verificationToken = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
 
     // Send verification email
-    await sendVerificationEmail(email, verificationToken);
+    await sendVerificationEmail(user.email, verificationToken);
 
+    // Return success response
     res.status(201).json({
-      message: 'Registration successful! Please verify your email.',
-      requiresEmailVerification: true
+      success: true,
+      message: 'Registration successful. Please check your email to verify your account.',
+      userId: user._id
     });
+
   } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Registration error:', error);
+
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const validationErrors = {};
+      for (let field in error.errors) {
+        validationErrors[field] = error.errors[field].message;
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: validationErrors
+      });
+    }
+
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      let message = 'This field is already registered';
+
+      if (field === 'email') {
+        message = 'Email already registered';
+      } else if (field === 'phone') {
+        message = 'Phone number already registered';
+      } else if (field === 'studentId') {
+        message = 'Student ID already registered in this organization';
+      }
+
+      return res.status(409).json({
+        success: false,
+        message,
+        field
+      });
+    }
+
+    // Handle other errors
+    res.status(500).json({
+      success: false,
+      message: 'Registration failed. Please try again.'
+    });
   }
 });
 
-// Login User
-router.post('/login', async (req, res) => {
+// Login User/Admin
+router.post('/login/:role', async (req, res) => {
   try {
+    const { role } = req.params;
     const { email, password } = req.body;
 
-    // Check if user exists
-    const user = await User.findOne({ email });
+    console.log('Login attempt:', { role, email });
+
+    // Validate role
+    if (!['user', 'admin'].includes(role)) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Invalid role specified' 
+      });
+    }
+
+    // Validate required fields
+    if (!email || !password) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Email and password are required' 
+      });
+    }
+
+    // Find user
+    const user = await User.findOne({ 
+      email: email.toLowerCase(),
+      role 
+    });
+
     if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ 
+        success: false,
+        message: 'Invalid email or password' 
+      });
     }
 
-    // Check if password is correct
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+    // Check if account is locked
+    if (user.lockUntil && user.lockUntil > Date.now()) {
+      const waitMinutes = Math.ceil((user.lockUntil - Date.now()) / (60 * 1000));
+      return res.status(401).json({
+        success: false,
+        message: `Account is locked. Please try again in ${waitMinutes} minutes`
+      });
     }
 
-    // Check if email is verified
+    // Check if account is verified
     if (!user.isVerified) {
-      return res.status(400).json({ message: 'Please verify your email first' });
+      return res.status(401).json({
+        success: false,
+        message: 'Please verify your email before logging in'
+      });
     }
 
-    // Create and send token
+    // Check if account is active
+    if (!user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'Your account has been deactivated. Please contact support.'
+      });
+    }
+
+    // Verify password
+    const isMatch = await user.comparePassword(password);
+
+    if (!isMatch) {
+      // Handle failed login attempt
+      await user.handleFailedLogin();
+      
+      if (user.loginAttempts >= 5) {
+        return res.status(401).json({
+          success: false,
+          message: 'Account locked due to too many failed attempts. Please try again in 30 minutes.'
+        });
+      }
+
+      return res.status(401).json({ 
+        success: false,
+        message: 'Invalid email or password',
+        attemptsRemaining: 5 - user.loginAttempts
+      });
+    }
+
+    // Reset login attempts on successful login
+    await user.resetLoginAttempts();
+
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Generate JWT token
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '24h' }
     );
 
+    console.log('Login successful:', {
+      userId: user._id,
+      email: user.email,
+      role: user.role
+    });
+
     res.json({
+      success: true,
+      message: 'Login successful',
       token,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        employeeId: user.employeeId,
-        department: user.department,
-        tokens: user.tokens,
-        profilePic: user.profilePic
+        ...(role === 'admin' ? { organizationName: user.organizationName } : {
+          studentId: user.studentId,
+          course: user.course,
+          semester: user.semester,
+          department: user.department
+        })
       }
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Login failed. Please try again later.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
+});
+
+// Check Auth Status
+router.get('/check', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+    }
+    res.json({ 
+      success: true,
+      user 
+    });
+  } catch (error) {
+    console.error('Auth check error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error during auth check' 
+    });
+  }
+});
+
+// Logout
+router.post('/logout', (req, res) => {
+  res.clearCookie('auth_token'); // Use consistent cookie name
+  res.json({ 
+    success: true,
+    message: 'Logged out successfully' 
+  });
 });
 
 // Verify Email
@@ -107,139 +378,105 @@ router.post('/verify-email', async (req, res) => {
   try {
     const { token } = req.body;
 
-    // Verify token
+    if (!token) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Verification token is required' 
+      });
+    }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Find and update user
-    const user = await User.findOne({ email: decoded.email });
+    const user = await User.findById(decoded.userId);
+
     if (!user) {
-      return res.status(400).json({ message: 'Invalid verification token' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
     }
 
-    if (user.isVerified) {
-      return res.status(400).json({ message: 'Email already verified' });
+    if (user.isEmailVerified) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Email already verified' 
+      });
     }
 
-    user.isVerified = true;
-    user.verificationToken = undefined;
+    user.isEmailVerified = true;
     await user.save();
 
-    res.json({ message: 'Email verified successfully' });
-  } catch (error) {
-    console.error('Email verification error:', error);
-    res.status(400).json({ message: 'Invalid or expired verification token' });
-  }
-});
-
-// Resend Verification Email
-router.post('/resend-verification', async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: 'User not found' });
-    }
-
-    if (user.isVerified) {
-      return res.status(400).json({ message: 'Email already verified' });
-    }
-
-    // Create new verification token
-    const verificationToken = jwt.sign(
-      { email },
-      process.env.JWT_SECRET,
-      { expiresIn: '1d' }
-    );
-
-    user.verificationToken = verificationToken;
-    await user.save();
-
-    // Send verification email
-    await sendVerificationEmail(email, verificationToken);
-
-    res.json({ message: 'Verification email sent successfully' });
-  } catch (error) {
-    console.error('Resend verification error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Request Password Reset
-router.post('/request-password-reset', async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: 'User not found' });
-    }
-
-    // Create reset token
-    const resetToken = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
-    );
-
-    user.resetPasswordToken = resetToken;
-    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
-    await user.save();
-
-    // Send reset email
-    await sendPasswordResetEmail(email, resetToken);
-
-    res.json({ message: 'Password reset email sent successfully' });
-  } catch (error) {
-    console.error('Password reset request error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Reset Password
-router.post('/reset-password', async (req, res) => {
-  try {
-    const { token, newPassword } = req.body;
-
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Find user
-    const user = await User.findOne({
-      _id: decoded.userId,
-      resetPasswordToken: token,
-      resetPasswordExpires: { $gt: Date.now() }
+    res.json({ 
+      success: true,
+      message: 'Email verified successfully' 
     });
-
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid or expired reset token' });
-    }
-
-    // Hash new password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-    // Update user
-    user.password = hashedPassword;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpires = undefined;
-    await user.save();
-
-    res.json({ message: 'Password reset successful' });
   } catch (error) {
-    console.error('Password reset error:', error);
-    res.status(400).json({ message: 'Invalid or expired reset token' });
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        success: false,
+        message: 'Verification link has expired' 
+      });
+    }
+    console.error('Email verification error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error during email verification' 
+    });
   }
 });
 
-// Verify Token (for protected routes)
-router.get('/verify', auth, async (req, res) => {
+/**
+ * @route POST /api/auth/check-email
+ * @desc Check if email is available
+ * @access Public
+ */
+router.post('/check-email', async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).select('-password');
-    res.json(user);
+    const { email, organizationName } = req.body;
+    
+    const user = await User.findOne({ 
+      email: email.toLowerCase(),
+      organizationName 
+    });
+    
+    if (user) {
+      return res.status(409).json({ 
+        message: 'Email already exists in this organization',
+        field: 'email'
+      });
+    }
+    
+    res.status(200).json({ message: 'Email is available' });
   } catch (error) {
-    console.error('Token verification error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error checking email:', error);
+    res.status(500).json({ message: 'Error checking email availability' });
+  }
+});
+
+// Temporary debug route - Remove in production
+router.get('/debug/users', async (req, res) => {
+  try {
+    const users = await User.find({});
+    res.json({
+      count: users.length,
+      users: users.map(u => ({
+        email: u.email,
+        phone: u.phone,
+        studentId: u.studentId,
+        organizationName: u.organizationName,
+        role: u.role
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/debug/clear-users', async (req, res) => {
+  try {
+    await User.deleteMany({});
+    res.json({ message: 'All users deleted' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

@@ -6,6 +6,11 @@ const { auth } = require('../middleware/auth');
 const User = require('../models/User');
 const { rateLimiter } = require('../middleware/rateLimiter');
 
+// Password validation function
+const validatePassword = (password) => {
+  return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/.test(password);
+};
+
 /**
  * @route POST /api/auth/register
  * @desc Register a new user
@@ -24,123 +29,109 @@ router.post('/register', rateLimiter, async (req, res) => {
       registrationCode,
       studentId,
       course,
-      semester
+      semester,
+      organizationName
     } = req.body;
-    console.log('Registration attempt:', { email, role });
+
+    console.log('Registration attempt:', { 
+      email, 
+      role,
+      hasPassword: !!password
+    });
 
     // Validate required fields
-    if (!name || !email || !password || !phone || !employeeId) {
+    if (!name || !email || !password || !phone || !role) {
       return res.status(400).json({
         success: false,
         message: 'Required fields are missing'
       });
     }
 
-    // Validate role
-    if (role && !['user', 'admin'].includes(role)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid role specified'
-      });
-    }
-
-    // Additional validation for admin registration
-    if (role === 'admin') {
-      if (!registrationCode) {
-        return res.status(400).json({
-          success: false,
-          message: 'Admin registration code is required'
-        });
-      }
-
-      if (registrationCode !== process.env.ADMIN_REGISTRATION_CODE) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid admin registration code'
-        });
-      }
-
-      if (!department) {
-        return res.status(400).json({
-          success: false,
-          message: 'Department is required for admin registration'
-        });
-      }
-    }
-
-    // Validate semester if provided
-    if (semester && (semester < 1 || semester > 8)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Semester must be between 1 and 8'
-      });
-    }
-
     // Check if user exists
-    const existingUser = await User.findOne({
-      $or: [
-        { email: email.toLowerCase() },
-        { employeeId }
-      ]
-    });
-
-    if (existingUser) {
-      return res.status(400).json({
+    const emailExists = await User.findOne({ email: email.toLowerCase() });
+    if (emailExists) {
+      return res.status(409).json({
         success: false,
-        message: existingUser.email === email.toLowerCase() ?
-          'Email already registered' :
-          'Employee ID already registered'
+        message: 'Email already registered',
+        field: 'email'
       });
     }
 
-    // Create new user with all fields
+    const phoneExists = await User.findOne({ phone });
+    if (phoneExists) {
+      return res.status(409).json({
+        success: false,
+        message: 'Phone number already registered',
+        field: 'phone'
+      });
+    }
+
+    // For students, check studentId uniqueness within the same organization
+    if (role === 'user' && studentId) {
+      const studentIdExists = await User.findOne({
+        studentId,
+        organizationName,
+        role: 'user'
+      });
+      
+      if (studentIdExists) {
+        return res.status(409).json({
+          success: false,
+          message: 'Student ID already registered in this organization',
+          field: 'studentId'
+        });
+      }
+    }
+
+    // Create user with plain password - it will be hashed by the pre-save middleware
     const user = new User({
       name,
       email: email.toLowerCase(),
-      password,
+      password: password, // Don't hash here, let the pre-save middleware handle it
       phone,
-      employeeId,
+      employeeId: employeeId || studentId,
       role: role || 'user',
       department,
       studentId,
       course,
       semester,
+      organizationName,
       isActive: true,
-      rewardPoints: 0,
-      createdAt: new Date()
+      isVerified: false
     });
 
-    // Save user
+    // Save user - this will trigger the pre-save middleware to hash the password
     await user.save();
-    console.log('User saved with hashed password:', user.password);
+    console.log('User saved successfully');
 
-    // Generate token
+    // Create JWT token
+    const payload = {
+      user: {
+        id: user.id,
+        role: user.role
+      }
+    };
+
     const token = jwt.sign(
-      { userId: user._id, role: user.role },
+      payload,
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
+    console.log('Registration successful:', { email: user.email, role: user.role });
+
     res.status(201).json({
       success: true,
-      message: 'Registration successful',
       token,
       user: {
-        id: user._id,
+        id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
-        employeeId: user.employeeId,
-        phone: user.phone,
-        studentId: user.studentId,
-        course: user.course,
-        semester: user.semester,
-        rewardPoints: user.rewardPoints,
-        department: user.department,
-        isActive: user.isActive,
-        createdAt: user.createdAt
+        department: user.department
       }
     });
+
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({
@@ -158,109 +149,175 @@ router.post('/register', rateLimiter, async (req, res) => {
 router.post('/login', rateLimiter, async (req, res) => {
   try {
     const { email, password, role } = req.body;
-    console.log('Login attempt:', { email, role });
+    console.log('Login - Request body:', { 
+      email, 
+      role,
+      hasPassword: !!password,
+      passwordLength: password?.length
+    });
 
-    // Validate input
-    if (!email || !password) {
-      console.log('Missing email or password');
+    // Validate required fields
+    if (!email || !password || !role) {
+      console.log('Login - Missing required fields:', { 
+        email: !!email, 
+        password: !!password, 
+        role: !!role,
+        passwordLength: password?.length 
+      });
       return res.status(400).json({
         success: false,
-        message: 'Email and password are required'
+        message: 'Email, password and role are required'
       });
     }
 
-    // Find user
+    // Find user by email
     const user = await User.findOne({ email: email.toLowerCase() });
-    console.log('User found:', user ? {
-      email: user.email,
-      role: user.role,
-      id: user._id
-    } : 'No');
-    
+    console.log('Login - User found:', { 
+      exists: !!user, 
+      email: email.toLowerCase(),
+      hasStoredPassword: !!user?.password,
+      storedPasswordLength: user?.password?.length
+    });
+
     if (!user) {
-      console.log('No user found with email:', email);
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Invalid email or password'
       });
     }
 
-    // Check if the user has the correct role
-    if (role && user.role !== role) {
-      console.log('Role mismatch. User role:', user.role, 'Requested role:', role);
-      return res.status(403).json({
+    // Verify role matches
+    console.log('Login - Role check:', { expected: role, actual: user.role });
+    if (user.role !== role) {
+      console.log('Login - Role mismatch:', { expected: role, actual: user.role });
+      return res.status(401).json({
         success: false,
-        message: `Invalid credentials for ${role} login`
+        message: 'Invalid role for this user'
       });
     }
 
-    // Check if user is active
-    if (!user.isActive) {
-      console.log('User account is inactive');
-      return res.status(400).json({
-        success: false,
-        message: 'Account is inactive'
-      });
-    }
-    
     // Check password
-    console.log('Attempting password comparison');
+    console.log('Login - Password verification details:', {
+      providedPasswordLength: password.length,
+      storedHashLength: user.password.length,
+      providedFirstChar: password[0],
+      providedLastChar: password[password.length - 1],
+      hashStart: user.password.substring(0, 10),
+      hashEnd: user.password.substring(user.password.length - 10),
+      containsSpecial: /[!@#$%^&*]/.test(password),
+      containsNumber: /\d/.test(password),
+      containsUpper: /[A-Z]/.test(password),
+      containsLower: /[a-z]/.test(password)
+    });
+
     const isMatch = await bcrypt.compare(password, user.password);
-    console.log('Password match:', isMatch ? 'Yes' : 'No');
-    console.log('Input password:', password);
-    console.log('Stored hashed password:', user.password);
-    
+    console.log('Login - Password match result:', isMatch);
+
     if (!isMatch) {
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Invalid email or password'
       });
     }
 
-    // Update lastLogin without triggering validation
-    await User.findByIdAndUpdate(
-      user._id,
-      { $set: { lastLogin: new Date() } },
-      { 
-        new: true,
-        runValidators: false  // Prevent validation during update
+    // Create JWT token
+    const payload = {
+      user: {
+        id: user.id,
+        role: user.role
       }
-    );
+    };
 
-    // Generate token
     const token = jwt.sign(
-      { userId: user._id, role: user.role },
+      payload,
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    console.log('Login successful for user:', user.email);
-    
+    // Update last login
+    user.lastLogin = new Date();
+    await user.save();
+
+    console.log('Login successful:', { email: user.email, role: user.role });
+
+    // Set cookies
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+    });
+
+    res.cookie('role', user.role, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+    });
+
     res.json({
       success: true,
-      token,
       user: {
-        id: user._id,
+        id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
-        employeeId: user.employeeId,
-        phone: user.phone,
-        studentId: user.studentId,
-        course: user.course,
-        semester: user.semester,
-        rewardPoints: user.rewardPoints,
         department: user.department,
-        isActive: user.isActive,
-        createdAt: user.createdAt,
         lastLogin: user.lastLogin
       }
     });
+
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error during login'
+    });
+  }
+});
+
+// Debug route to verify stored password hash (REMOVE IN PRODUCTION)
+router.post('/verify-hash', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Find user
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    console.log('Stored password verification:', {
+      email: user.email,
+      storedHashLength: user.password?.length,
+      hashStart: user.password?.substring(0, 10),
+      hashEnd: user.password?.substring(user.password.length - 10)
+    });
+
+    // Test password comparison
+    const isMatch = await bcrypt.compare(password, user.password);
+    
+    return res.json({
+      success: true,
+      passwordMatch: isMatch,
+      details: {
+        providedPasswordLength: password.length,
+        storedHashLength: user.password.length,
+        hashStart: user.password.substring(0, 10),
+        hashEnd: user.password.substring(user.password.length - 10)
+      }
+    });
+
+  } catch (error) {
+    console.error('Hash verification error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error verifying hash'
     });
   }
 });
@@ -272,19 +329,79 @@ router.post('/login', rateLimiter, async (req, res) => {
  */
 router.get('/verify', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(req.user.userId).select('-password');
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
-    res.json(user);
+    res.json({
+      success: true,
+      user
+    });
   } catch (error) {
     console.error('Verify error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'
+    });
+  }
+});
+
+/**
+ * @route GET /api/auth/check
+ * @desc Check user authentication status
+ * @access Private
+ */
+router.get('/check', async (req, res) => {
+  try {
+    // Get token from cookie
+    const token = req.cookies.token;
+    
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token found'
+      });
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Get user data
+    const user = await User.findById(decoded.user.id).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    console.log('Auth check successful:', {
+      userId: user._id,
+      email: user.email,
+      role: user.role
+    });
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        department: user.department,
+        lastLogin: user.lastLogin
+      }
+    });
+
+  } catch (error) {
+    console.error('Auth check error:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Token is not valid'
     });
   }
 });

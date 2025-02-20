@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const jwt = require("jsonwebtoken");
 const Admin = require("../models/Admin");
-const auth = require("../middleware/auth");
+const { auth } = require("../middleware/auth");
 
 // Cookie options
 const cookieOptions = {

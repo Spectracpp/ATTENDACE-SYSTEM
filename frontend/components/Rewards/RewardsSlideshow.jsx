@@ -87,13 +87,16 @@ const RewardsSlideshow = () => {
     let direction = 1;
     let isHovered = false;
 
-    scrollContainer.addEventListener('mouseenter', () => {
+    const handleMouseEnter = () => {
       isHovered = true;
-    });
+    };
 
-    scrollContainer.addEventListener('mouseleave', () => {
+    const handleMouseLeave = () => {
       isHovered = false;
-    });
+    };
+
+    scrollContainer.addEventListener('mouseenter', handleMouseEnter);
+    scrollContainer.addEventListener('mouseleave', handleMouseLeave);
 
     const animate = () => {
       if (!isHovered && scrollContainer) {
@@ -114,12 +117,8 @@ const RewardsSlideshow = () => {
     animate();
 
     return () => {
-      scrollContainer.removeEventListener('mouseenter', () => {
-        isHovered = true;
-      });
-      scrollContainer.removeEventListener('mouseleave', () => {
-        isHovered = false;
-      });
+      scrollContainer.removeEventListener('mouseenter', handleMouseEnter);
+      scrollContainer.removeEventListener('mouseleave', handleMouseLeave);
     };
   }, []);
 
@@ -141,9 +140,9 @@ const RewardsSlideshow = () => {
           {/* Scrolling container */}
           <div className="overflow-hidden">
             <div 
-              ref={scrollRef}
               className="flex py-8 transition-transform duration-300 ease-linear"
               style={{ willChange: 'transform' }}
+              ref={scrollRef}
             >
               {duplicatedRewards.map((reward, index) => (
                 <RewardCard key={`${reward.id}-${index}`} reward={reward} />

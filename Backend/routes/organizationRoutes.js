@@ -3,49 +3,40 @@ const router = express.Router();
 const Organization = require('../models/Organization');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
-const { auth, authorize, authorizeOrganization } = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
+const { authorize, authorizeOrganization } = require('../middleware/organization');
 const { organizationValidation } = require('../middleware/validate');
 const { rateLimiter } = require('../middleware/rateLimiter');
 
 /**
  * @route GET /api/organizations
- * @desc Get all organizations (paginated)
- * @access Private
+ * @desc Get all organizations (public)
+ * @access Public
  */
-router.get('/',
-  auth,
-  rateLimiter,
-  async (req, res) => {
-    try {
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
-      const search = req.query.search || '';
+router.get('/', async (req, res) => {
+  try {
+    const organizations = await Organization
+      .find({ status: 'active' })
+      .select('name code type')
+      .lean()
+      .exec();
 
-      const query = search 
-        ? { name: { $regex: search, $options: 'i' } }
-        : {};
-
-      const organizations = await Organization
-        .find(query, 'name code type status')
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .sort({ createdAt: -1 });
-
-      const total = await Organization.countDocuments(query);
-
-      res.json({
-        organizations,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit)
-        }
-      });
-    } catch (error) {
-      console.error('List organizations error:', error);
-      res.status(500).json({ message: 'Error fetching organizations' });
-    }
+    res.json({
+      success: true,
+      organizations: organizations.map(org => ({
+        _id: org._id,
+        name: org.name,
+        code: org.code,
+        type: org.type
+      }))
+    });
+  } catch (error) {
+    console.error('List organizations error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching organizations' 
+    });
+  }
 });
 
 /**
@@ -156,8 +147,6 @@ router.get('/:id',
  */
 router.put('/:id',
   auth,
-  authorize('admin'),
-  organizationValidation.update,
   async (req, res) => {
     try {
       const { name, settings } = req.body;
@@ -310,7 +299,6 @@ router.delete('/:id/members/:userId',
  */
 router.get('/:id/statistics',
   auth,
-  authorize('admin'),
   async (req, res) => {
     try {
       const organization = await Organization.findById(req.params.id);
@@ -326,6 +314,91 @@ router.get('/:id/statistics',
     } catch (error) {
       console.error('Get statistics error:', error);
       res.status(500).json({ message: 'Error fetching statistics' });
+    }
+});
+
+/**
+ * @route GET /api/organizations/user
+ * @desc Get organizations for the current user
+ * @access Private
+ */
+router.get('/user',
+  auth,
+  async (req, res) => {
+    try {
+      const organizations = await Organization.find({
+        'members.user': req.user._id
+      }, 'name code type status');
+
+      res.json(organizations);
+    } catch (error) {
+      console.error('Get user organizations error:', error);
+      res.status(500).json({ message: 'Error fetching user organizations' });
+    }
+});
+
+/**
+ * @route GET /api/organizations/user/list
+ * @desc Get organizations for the current user
+ * @access Private
+ */
+router.get('/user/list', auth, async (req, res) => {
+  try {
+    // Get organizations where the user is a member
+    const organizations = await Organization.find({
+      'members.user': req.user._id,
+      status: 'active'
+    })
+    .populate('members.user', 'firstName lastName email')
+    .lean()
+    .exec();
+
+    res.json({
+      success: true,
+      organizations
+    });
+  } catch (error) {
+    console.error('Get user organizations error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching user organizations' 
+    });
+  }
+});
+
+/**
+ * @route POST /api/organizations/switch
+ * @desc Switch current organization
+ * @access Private
+ */
+router.post('/switch',
+  auth,
+  organizationValidation.switch,
+  async (req, res) => {
+    try {
+      const { organizationId } = req.body;
+
+      const organization = await Organization.findOne({
+        _id: organizationId,
+        'members.user': req.user._id
+      });
+
+      if (!organization) {
+        return res.status(404).json({ message: 'Organization not found or access denied' });
+      }
+
+      // Update user's current organization
+      await User.findByIdAndUpdate(req.user._id, {
+        currentOrganization: organizationId
+      });
+
+      res.json({ 
+        message: 'Organization switched successfully',
+        organization 
+      });
+    } catch (error) {
+      console.error('Switch organization error:', error);
+      res.status(500).json({ message: 'Error switching organization' });
     }
 });
 

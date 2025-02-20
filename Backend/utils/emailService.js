@@ -100,3 +100,81 @@ exports.sendWelcomeEmail = async (email, { organizationName, role, firstName }) 
         throw new Error('Failed to send welcome email');
     }
 };
+
+// Send verification email
+exports.sendVerificationEmail = async (email, verificationToken) => {
+    const verificationUrl = `${process.env.FRONTEND_URL}/auth/verify-email/${verificationToken}`;
+
+    const mailOptions = {
+        from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_FROM_ADDRESS}>`,
+        to: email,
+        subject: 'Verify your email address',
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2>Verify your email address</h2>
+                <p>Hello,</p>
+                <p>Thank you for registering! Please click the button below to verify your email address:</p>
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="${verificationUrl}" 
+                       style="background-color: #4CAF50; color: white; padding: 12px 24px; 
+                              text-decoration: none; border-radius: 4px; display: inline-block;">
+                        Verify Email
+                    </a>
+                </div>
+                <p>Or copy and paste this link in your browser:</p>
+                <p>${verificationUrl}</p>
+                <p>This link will expire in 24 hours.</p>
+                <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+                <p style="color: #666; font-size: 12px;">
+                    If you didn't create an account, you can safely ignore this email.
+                </p>
+            </div>
+        `
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+    } catch (error) {
+        console.error('Error sending verification email:', error);
+        throw new Error('Failed to send verification email');
+    }
+};
+
+// Send password reset email
+exports.sendPasswordResetEmail = async (email, resetToken) => {
+    const resetUrl = `${process.env.FRONTEND_URL}/auth/reset-password/${resetToken}`;
+
+    const mailOptions = {
+        from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_FROM_ADDRESS}>`,
+        to: email,
+        subject: 'Reset your password',
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2>Reset your password</h2>
+                <p>Hello,</p>
+                <p>We received a request to reset your password. Click the button below to create a new password:</p>
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="${resetUrl}" 
+                       style="background-color: #4CAF50; color: white; padding: 12px 24px; 
+                              text-decoration: none; border-radius: 4px; display: inline-block;">
+                        Reset Password
+                    </a>
+                </div>
+                <p>Or copy and paste this link in your browser:</p>
+                <p>${resetUrl}</p>
+                <p>This link will expire in 1 hour.</p>
+                <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+                <p style="color: #666; font-size: 12px;">
+                    If you didn't request a password reset, you can safely ignore this email.
+                </p>
+            </div>
+        `
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+    } catch (error) {
+        console.error('Error sending password reset email:', error);
+        throw new Error('Failed to send password reset email');
+    }
+};

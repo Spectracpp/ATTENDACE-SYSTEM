@@ -23,7 +23,7 @@ export default function RoleSwitcher({ currentRole, currentPage }) {
     {
       label: `${oppositeRole === 'admin' ? 'Admin' : 'User'} Register`,
       icon: <FaUserPlus />,
-      path: oppositeRole === 'admin' ? '/auth/admin/register' : '/auth/register'
+      path: `/auth/register/${oppositeRole}`
     }
   ];
 

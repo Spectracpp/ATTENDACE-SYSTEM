@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const auth = require("../middleware/auth");
+const path = require("path");
+const { auth } = require("../middleware/auth");
 
 // Serve the QR scanner page (Admin only)
 router.get("/scanner", auth, (req, res) => {

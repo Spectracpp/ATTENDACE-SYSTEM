@@ -1,76 +1,115 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
-export async function POST(request) {
+export async function GET() {
+  // Redirect to /auth/login/user
+  return NextResponse.redirect(new URL('/auth/login/user', process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'));
+}
+
+export async function POST(req) {
   try {
-    const body = await request.json();
-    const { email, password, role } = body;
+    const body = await req.json();
+    const { email, password, role = 'user' } = body; // Default role to 'user'
 
-    console.log('Login attempt:', { email, role });
-
-    // Make a request to your backend API
-    const apiResponse = await fetch('http://localhost:5000/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password, role }),
+    // Log login attempt
+    console.log('Frontend - Login attempt:', { 
+      email, 
+      role,
+      hasPassword: !!password 
     });
 
-    console.log('Backend response status:', apiResponse.status);
-
-    // Check if response is ok before trying to parse JSON
-    if (!apiResponse.ok) {
-      const errorText = await apiResponse.text();
-      try {
-        const errorData = JSON.parse(errorText);
-        return NextResponse.json(
-          { message: errorData.message || 'Login failed' },
-          { status: apiResponse.status }
-        );
-      } catch (e) {
-        return NextResponse.json(
-          { message: 'Login failed: ' + errorText },
-          { status: apiResponse.status }
-        );
-      }
+    // Validate required fields
+    if (!email || !password) {
+      console.log('Frontend - Missing required fields:', { 
+        email: !!email, 
+        password: !!password,
+        passwordLength: password?.length 
+      });
+      return NextResponse.json({
+        success: false,
+        message: 'Email and password are required'
+      }, { status: 400 });
     }
 
-    const data = await apiResponse.json();
-    console.log('Login successful, user data:', data.user);
-    
-    // Create response with the data
+    // Trim whitespace and validate
+    const trimmedEmail = email.toLowerCase().trim();
+    const trimmedPassword = password.trim();
+
+    console.log('Frontend - Password details:', {
+      originalLength: password.length,
+      trimmedLength: trimmedPassword.length,
+      firstChar: trimmedPassword[0],
+      lastChar: trimmedPassword[trimmedPassword.length - 1],
+      containsSpecial: /[!@#$%^&*]/.test(trimmedPassword),
+      containsNumber: /\d/.test(trimmedPassword),
+      containsUpper: /[A-Z]/.test(trimmedPassword),
+      containsLower: /[a-z]/.test(trimmedPassword)
+    });
+
+    if (trimmedPassword.length < 6) {
+      return NextResponse.json({
+        success: false,
+        message: 'Password must be at least 6 characters long'
+      }, { status: 400 });
+    }
+
+    // Make request to backend
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
+    console.log('Frontend - Making request to backend:', `${backendUrl}/api/auth/login`);
+
+    const response = await fetch(`${backendUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ 
+        email: trimmedEmail,
+        password: trimmedPassword,
+        role
+      }),
+      credentials: 'include', // Important: This allows cookies to be sent and received
+      cache: 'no-store'
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.log('Login failed:', {
+        status: response.status,
+        message: data.message
+      });
+
+      return NextResponse.json({
+        success: false,
+        message: data.message || 'Invalid email or password'
+      }, { status: response.status });
+    }
+
+    // Get cookies from backend response
+    const cookies = response.headers.get('set-cookie');
+    console.log('Login successful:', {
+      email: data.user.email,
+      role: data.user.role,
+      hasCookies: !!cookies
+    });
+
+    // Create response with user data and forward cookies
     const res = NextResponse.json({
       success: true,
-      user: data.user,
-      token: data.token // Include token in response for debugging
+      user: data.user
     });
 
-    // Set cookies for token and role
-    res.cookies.set({
-      name: 'token',
-      value: data.token,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-    });
-
-    res.cookies.set({
-      name: 'role',
-      value: data.user.role,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-    });
+    // Forward the cookies from the backend
+    if (cookies) {
+      res.headers.set('set-cookie', cookies);
+    }
 
     return res;
+
   } catch (error) {
     console.error('Login error:', error);
-    return NextResponse.json(
-      { message: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: false,
+      message: 'Server error during login'
+    }, { status: 500 });
   }
 }

@@ -30,19 +30,50 @@ const AuthForm = ({ type, role, onSubmit }) => {
     adminCode: type === 'signup' && role === 'admin' ? '' : undefined,
   });
 
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showStudentFields, setShowStudentFields] = useState(false);
 
+  const validateForm = () => {
+    const newErrors = {};
+    if (type === 'signup') {
+      if (!formData.name?.trim()) newErrors.name = 'Name is required';
+      if (!formData.phone?.trim()) newErrors.phone = 'Phone number is required';
+      if (!formData.employeeId?.trim()) newErrors.employeeId = 'Employee ID is required';
+      if (formData.password && formData.password.length < 6) {
+        newErrors.password = 'Password must be at least 6 characters';
+      }
+    }
+    if (!formData.email?.trim()) newErrors.email = 'Email is required';
+    if (!formData.password?.trim()) newErrors.password = 'Password is required';
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setErrors({});
+    
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
 
     try {
       await onSubmit(formData);
     } catch (err) {
-      setError(err.message || 'An error occurred');
+      if (err.message.includes('Missing required fields')) {
+        const missingFields = err.missingFields || [];
+        const newErrors = {};
+        missingFields.forEach(field => {
+          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+        });
+        setErrors(newErrors);
+      } else {
+        setErrors({ general: err.message || 'An error occurred' });
+      }
     } finally {
       setLoading(false);
     }
@@ -99,7 +130,7 @@ const AuthForm = ({ type, role, onSubmit }) => {
             {type === 'signup' && (
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-300">
-                  Full Name
+                  Full Name *
                 </label>
                 <input
                   id="name"
@@ -108,14 +139,17 @@ const AuthForm = ({ type, role, onSubmit }) => {
                   required
                   value={formData.name || ''}
                   onChange={handleChange}
-                  className="mt-1 block w-full rounded-md bg-white/5 border border-white/10 text-white px-3 py-2 focus:border-primary focus:ring-primary"
+                  className={`mt-1 block w-full rounded-md bg-white/5 border ${errors.name ? 'border-red-500' : 'border-white/10'} text-white px-3 py-2 focus:border-primary focus:ring-primary`}
                 />
+                {errors.name && (
+                  <p className="mt-1 text-sm text-red-500">{errors.name}</p>
+                )}
               </div>
             )}
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-300">
-                Email address
+                Email address *
               </label>
               <input
                 id="email"
@@ -124,13 +158,16 @@ const AuthForm = ({ type, role, onSubmit }) => {
                 required
                 value={formData.email}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md bg-white/5 border border-white/10 text-white px-3 py-2 focus:border-primary focus:ring-primary"
+                className={`mt-1 block w-full rounded-md bg-white/5 border ${errors.email ? 'border-red-500' : 'border-white/10'} text-white px-3 py-2 focus:border-primary focus:ring-primary`}
               />
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-500">{errors.email}</p>
+              )}
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-300">
-                Password
+                Password *
               </label>
               <input
                 id="password"
@@ -139,15 +176,18 @@ const AuthForm = ({ type, role, onSubmit }) => {
                 required
                 value={formData.password}
                 onChange={handleChange}
-                className="mt-1 block w-full rounded-md bg-white/5 border border-white/10 text-white px-3 py-2 focus:border-primary focus:ring-primary"
+                className={`mt-1 block w-full rounded-md bg-white/5 border ${errors.password ? 'border-red-500' : 'border-white/10'} text-white px-3 py-2 focus:border-primary focus:ring-primary`}
               />
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-500">{errors.password}</p>
+              )}
             </div>
 
             {type === 'signup' && (
               <>
                 <div>
                   <label htmlFor="phone" className="block text-sm font-medium text-gray-300">
-                    Phone Number
+                    Phone Number *
                   </label>
                   <input
                     id="phone"
@@ -156,13 +196,16 @@ const AuthForm = ({ type, role, onSubmit }) => {
                     required
                     value={formData.phone || ''}
                     onChange={handleChange}
-                    className="mt-1 block w-full rounded-md bg-white/5 border border-white/10 text-white px-3 py-2 focus:border-primary focus:ring-primary"
+                    className={`mt-1 block w-full rounded-md bg-white/5 border ${errors.phone ? 'border-red-500' : 'border-white/10'} text-white px-3 py-2 focus:border-primary focus:ring-primary`}
                   />
+                  {errors.phone && (
+                    <p className="mt-1 text-sm text-red-500">{errors.phone}</p>
+                  )}
                 </div>
 
                 <div>
                   <label htmlFor="employeeId" className="block text-sm font-medium text-gray-300">
-                    Employee ID
+                    Employee ID *
                   </label>
                   <input
                     id="employeeId"
@@ -171,8 +214,11 @@ const AuthForm = ({ type, role, onSubmit }) => {
                     required
                     value={formData.employeeId || ''}
                     onChange={handleChange}
-                    className="mt-1 block w-full rounded-md bg-white/5 border border-white/10 text-white px-3 py-2 focus:border-primary focus:ring-primary"
+                    className={`mt-1 block w-full rounded-md bg-white/5 border ${errors.employeeId ? 'border-red-500' : 'border-white/10'} text-white px-3 py-2 focus:border-primary focus:ring-primary`}
                   />
+                  {errors.employeeId && (
+                    <p className="mt-1 text-sm text-red-500">{errors.employeeId}</p>
+                  )}
                 </div>
 
                 <div>
@@ -265,16 +311,19 @@ const AuthForm = ({ type, role, onSubmit }) => {
                       required
                       value={formData.adminCode || ''}
                       onChange={handleChange}
-                      className="mt-1 block w-full rounded-md bg-white/5 border border-white/10 text-white px-3 py-2 focus:border-primary focus:ring-primary"
+                      className={`mt-1 block w-full rounded-md bg-white/5 border ${errors.adminCode ? 'border-red-500' : 'border-white/10'} text-white px-3 py-2 focus:border-primary focus:ring-primary`}
                     />
+                    {errors.adminCode && (
+                      <p className="mt-1 text-sm text-red-500">{errors.adminCode}</p>
+                    )}
                   </div>
                 )}
               </>
             )}
 
-            {error && (
+            {errors.general && (
               <div className="text-red-500 text-sm mt-2">
-                {error}
+                {errors.general}
               </div>
             )}
 
