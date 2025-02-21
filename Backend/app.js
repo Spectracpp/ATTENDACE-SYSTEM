@@ -39,6 +39,9 @@ app.use(cookieParser());
 // Compression
 app.use(compression());
 
+// Serve static files
+app.use('/uploads', express.static('uploads'));
+
 // Health check
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });

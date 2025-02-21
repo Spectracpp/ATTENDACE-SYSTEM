@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import QRScanner from '@/components/QRScanner';
 import { FaQrcode, FaHistory, FaClock } from 'react-icons/fa';
 import toast from 'react-hot-toast';

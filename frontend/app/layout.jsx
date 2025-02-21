@@ -1,7 +1,6 @@
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
-import Navigation from '@/components/Layout/Navigation';
 import { Box, Container } from '@mui/material';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -17,7 +16,6 @@ export default function RootLayout({ children }) {
       <body className={inter.className} style={{ margin: 0, padding: 0 }}>
         <Providers>
           <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            <Navigation />
             <Box
               component="main"
               sx={{

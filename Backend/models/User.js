@@ -100,6 +100,10 @@ const userSchema = new mongoose.Schema({
     trim: true,
     minlength: [2, 'Organization name must be at least 2 characters long']
   },
+  avatar: {
+    type: String,
+    trim: true
+  },
   isActive: {
     type: Boolean,
     default: true

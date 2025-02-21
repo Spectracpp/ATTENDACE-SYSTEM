@@ -21,25 +21,20 @@ export function Logo({ height = 40, animated = true }) {
   );
 }
 
-export function LogoWithText({ height = 40, animated = true }) {
-  const textStyle = {
-    background: 'linear-gradient(to right, #00f2ea, #00c4fc)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-  };
-
+export function LogoWithText({ className = '', height = 40, animated = true }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className={`flex items-center gap-2 ${className}`}>
       <Logo height={height} animated={animated} />
-      <motion.h1
-        className="text-2xl font-bold"
-        style={textStyle}
-        initial={animated ? { x: -20, opacity: 0 } : {}}
-        animate={animated ? { x: 0, opacity: 1 } : {}}
+      <motion.div
+        initial={animated ? { opacity: 0, x: -20 } : { opacity: 1, x: 0 }}
+        animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
+        className="flex items-center"
       >
-        AttendEase
-      </motion.h1>
+        <span className="text-2xl font-bold text-white">
+          Attend<span className="text-[#00f2ea]">Ease</span>
+        </span>
+      </motion.div>
     </div>
   );
 }

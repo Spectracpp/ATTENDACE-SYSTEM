@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import QRCodeGenerator from '@/components/QRCodeGenerator';
 import { FaQrcode, FaUsers, FaCalendarAlt, FaCog } from 'react-icons/fa';
 import toast from 'react-hot-toast';

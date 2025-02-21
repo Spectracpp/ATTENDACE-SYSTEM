@@ -9,6 +9,8 @@ const validate = require('../middleware/validate');
 const { rateLimiter } = require('../middleware/rateLimiter');
 const sendEmail = require('../utils/email');
 const crypto = require('crypto');
+const multer = require('multer');
+const path = require('path');
 
 // Cookie options
 const cookieOptions = {
@@ -17,6 +19,30 @@ const cookieOptions = {
   sameSite: 'strict',
   maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
 };
+
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/avatars/');
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
+      return cb(new Error('Only image files are allowed!'), false);
+    }
+    cb(null, true);
+  }
+});
 
 /**
  * @route POST /api/users/register
@@ -129,14 +155,24 @@ router.post('/login',
  */
 router.get('/profile', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).select('-password').populate('organizations.organization', 'name code type status');
+    const user = await User.findById(req.user._id).select('-password');
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
     }
-    res.json(user);
+
+    res.json({
+      success: true,
+      user
+    });
   } catch (error) {
-    console.error('Profile error:', error);
-    res.status(500).json({ message: 'Error getting profile' });
+    console.error('Profile fetch error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching profile'
+    });
   }
 });
 
@@ -147,37 +183,72 @@ router.get('/profile', auth, async (req, res) => {
  */
 router.put('/profile', 
   auth,
-  validate.userValidation.update,
+  upload.single('avatar'),
   async (req, res) => {
     try {
-      const { name, phone, employeeId } = req.body;
-      const user = await User.findById(req.user.userId);
+      const updates = {};
+      const allowedUpdates = ['name', 'phone', 'course', 'semester', 'department'];
       
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
+      // Handle basic field updates
+      Object.keys(req.body).forEach(key => {
+        if (allowedUpdates.includes(key) && req.body[key]) {
+          updates[key] = req.body[key];
+        }
+      });
+
+      // Handle password change
+      if (req.body.currentPassword && req.body.newPassword) {
+        const isMatch = await bcrypt.compare(req.body.currentPassword, req.user.password);
+        if (!isMatch) {
+          return res.status(400).json({
+            success: false,
+            message: 'Current password is incorrect'
+          });
+        }
+
+        // Validate new password
+        if (req.body.newPassword.length < 6) {
+          return res.status(400).json({
+            success: false,
+            message: 'New password must be at least 6 characters long'
+          });
+        }
+
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        updates.password = await bcrypt.hash(req.body.newPassword, salt);
       }
 
-      // Update fields
-      if (name) user.name = name;
-      if (phone) user.phone = phone;
-      if (employeeId) user.employeeId = employeeId;
+      // Handle avatar upload
+      if (req.file) {
+        updates.avatar = `/uploads/avatars/${req.file.filename}`;
+      }
 
-      await user.save();
+      // Update user
+      const user = await User.findByIdAndUpdate(
+        req.user._id,
+        { $set: updates },
+        { new: true, runValidators: true }
+      ).select('-password');
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
 
       res.json({
         success: true,
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          employeeId: user.employeeId,
-          role: user.role
-        }
+        message: 'Profile updated successfully',
+        user
       });
     } catch (error) {
       console.error('Profile update error:', error);
-      res.status(500).json({ message: 'Error updating profile' });
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Error updating profile'
+      });
     }
 });
 

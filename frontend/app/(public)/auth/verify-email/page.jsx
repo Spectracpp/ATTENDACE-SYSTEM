@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import LoadingSpinner from '../../../components/common/LoadingSpinner';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function VerifyEmail() {
   const [loading, setLoading] = useState(false);

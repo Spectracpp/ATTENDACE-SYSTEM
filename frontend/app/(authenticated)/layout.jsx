@@ -1,8 +1,9 @@
 'use client';
 
-import { useAuth } from '../context/AuthContext';
-import Sidebar from '../../components/Sidebar/Sidebar';
-import Navbar from '../../components/Navbar';
+import { useAuth } from '@/hooks/useAuth';
+import Sidebar from '@/components/Sidebar/Sidebar';
+import Header from '@/components/Header/Header';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function AuthenticatedLayout({ children }) {
   const { user, loading } = useAuth();
@@ -10,7 +11,7 @@ export default function AuthenticatedLayout({ children }) {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <LoadingSpinner />
       </div>
     );
   }
@@ -21,7 +22,7 @@ export default function AuthenticatedLayout({ children }) {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Navbar />
+      <Header />
       <div className="flex">
         <Sidebar />
         <main className="flex-1 pt-16 lg:pl-64">

@@ -1,9 +1,10 @@
 'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
-import Header from '../components/Header/Header';
-import Footer from '../components/Footer/Footer';
-import RewardsSlideshow from '../components/Rewards/RewardsSlideshow';
+import RewardsSlideshow from '@/components/Rewards/RewardsSlideshow';
+import Footer from '@/components/Footer/Footer';
+import HomeLayout from './home-layout';
 import { 
   FaBitcoin, 
   FaGift, 
@@ -55,9 +56,8 @@ const stats = [
 
 export default function Home() {
   return (
-    <div className="bg-black min-h-screen">
-      <Header />
-      <main>
+    <HomeLayout>
+      <div className="min-h-screen bg-gradient-to-b from-black to-gray-900 text-white">
         {/* Hero Section */}
         <div className="relative">
           <div className="mx-auto max-w-7xl px-6 pb-24 pt-10 sm:pb-32 lg:flex lg:px-8 lg:py-40">
@@ -279,7 +279,7 @@ export default function Home() {
 
         {/* Footer Section */}
         <Footer />
-      </main>
-    </div>
+      </div>
+    </HomeLayout>
   );
 }

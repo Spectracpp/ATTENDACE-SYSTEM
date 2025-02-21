@@ -1,5 +1,5 @@
 'use client';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import ChangePasswordForm from '@/components/Auth/ChangePasswordForm';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';

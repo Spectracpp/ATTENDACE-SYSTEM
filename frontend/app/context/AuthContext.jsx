@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
-const AuthContext = createContext({});
+export const AuthContext = createContext({});
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -12,13 +12,11 @@ export function AuthProvider({ children }) {
   const router = useRouter();
 
   useEffect(() => {
-    console.log('AuthProvider mounted, checking auth...');
     checkAuth();
   }, []);
 
   const checkAuth = async () => {
     try {
-      console.log('Checking authentication...');
       const response = await fetch('/api/auth/me', {
         method: 'GET',
         credentials: 'include',
@@ -28,8 +26,8 @@ export function AuthProvider({ children }) {
       });
       
       if (!response.ok) {
-        console.log('Auth check failed:', response.status);
         setUser(null);
+        setLoading(false);
         // Only redirect if we're on a protected route
         const path = window.location.pathname;
         if (path.startsWith('/dashboard') || path.startsWith('/admin')) {
@@ -39,7 +37,6 @@ export function AuthProvider({ children }) {
       }
 
       const data = await response.json();
-      console.log('Auth check response:', data);
       
       if (data.success) {
         setUser(data.user);
@@ -59,117 +56,88 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const login = async (email, password, role) => {
-    console.log('Attempting login...', { email, role });
-    
+  const login = async (credentials) => {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password, role }),
-        credentials: 'include',
+        body: JSON.stringify(credentials),
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Login failed');
-      }
-
       const data = await response.json();
-      console.log('Login response:', { success: data.success });
 
-      setUser(data.user);
-      toast.success('Login successful!');
-
-      // Redirect based on role
-      if (data.user.role === 'admin') {
-        router.replace('/admin/dashboard');
+      if (response.ok && data.success) {
+        setUser(data.user);
+        toast.success('Logged in successfully');
+        router.push('/dashboard');
+        return { success: true };
       } else {
-        router.replace('/dashboard');
+        toast.error(data.message || 'Login failed');
+        return { success: false, message: data.message };
       }
-
-      return data;
     } catch (error) {
       console.error('Login error:', error);
-      toast.error(error.message || 'Login failed');
-      throw error;
+      toast.error('An error occurred during login');
+      return { success: false, message: 'An error occurred during login' };
     }
   };
 
   const logout = async () => {
     try {
-      const response = await fetch('/api/auth/logout', {
+      await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });
-
-      if (!response.ok) {
-        throw new Error('Logout failed');
-      }
-
       setUser(null);
-      router.replace('/auth/login/user');
+      router.push('/');
       toast.success('Logged out successfully');
     } catch (error) {
       console.error('Logout error:', error);
-      toast.error('Error during logout');
+      toast.error('An error occurred during logout');
     }
   };
 
   const register = async (userData) => {
     try {
-      const { role, confirmPassword, ...registrationData } = userData;
-      
-      // Validate required fields before making the request
-      const requiredFields = ['name', 'email', 'password', 'phone'];
-      if (role === 'user') {
-        requiredFields.push('studentId', 'course', 'semester', 'department');
-      } else if (role === 'admin') {
-        requiredFields.push('organizationName');
-      }
-
-      const missingFields = requiredFields.filter(field => !registrationData[field]?.trim());
-      if (missingFields.length > 0) {
-        throw new Error(`Please fill in all required fields: ${missingFields.join(', ')}`);
-      }
-
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ...registrationData, role }),
-        credentials: 'include',
+        body: JSON.stringify(userData),
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Registration failed');
-      }
-
       const data = await response.json();
-      console.log('Registration response:', { success: data.success });
 
-      toast.success('Registration successful! Please log in.');
-      router.replace(`/auth/login/${role}`);
-
-      return data;
+      if (response.ok && data.success) {
+        toast.success('Registration successful! Please log in.');
+        router.push('/auth/login/user');
+        return { success: true };
+      } else {
+        toast.error(data.message || 'Registration failed');
+        return { success: false, message: data.message };
+      }
     } catch (error) {
       console.error('Registration error:', error);
-      toast.error(error.message || 'Registration failed');
-      throw error;
+      toast.error('An error occurred during registration');
+      return { success: false, message: 'An error occurred during registration' };
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, register, checkAuth }}>
+    <AuthContext.Provider 
+      value={{
+        user,
+        loading,
+        login,
+        logout,
+        register,
+        checkAuth
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }

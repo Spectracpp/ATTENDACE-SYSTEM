@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from './AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { organizationService } from '../../services/organization';
 import toast from 'react-hot-toast';
 

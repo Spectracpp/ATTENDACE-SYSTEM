@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { LogoWithText } from '@/components/Logo';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { FaEnvelope, FaLock } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 

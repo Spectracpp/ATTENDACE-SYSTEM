@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider } from '@/context/AuthContext';
 import { OrganizationProvider } from './context/OrganizationContext';
 import { theme } from '../theme/theme';
 
@@ -29,20 +29,8 @@ export function Providers({ children }) {
               toastOptions={{
                 duration: 5000,
                 style: {
-                  background: '#fff',
-                  color: '#333',
-                },
-                success: {
-                  style: {
-                    background: '#4caf50',
-                    color: '#fff',
-                  },
-                },
-                error: {
-                  style: {
-                    background: '#f44336',
-                    color: '#fff',
-                  },
+                  background: '#333',
+                  color: '#fff',
                 },
               }}
             />

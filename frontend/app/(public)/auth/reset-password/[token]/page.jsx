@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import LoadingSpinner from '../../../../components/common/LoadingSpinner';
-import { useAuth } from '../../../context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function ResetPassword({ params }) {
   const [password, setPassword] = useState('');

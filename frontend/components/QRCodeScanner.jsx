@@ -1,96 +1,97 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
-import toast from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 
-export default function QRCodeScanner({ onScan, onError }) {
-  const [scanner, setScanner] = useState(null);
+export default function QRCodeScanner({ onScan }) {
+  const [scanning, setScanning] = useState(false);
+  const scannerRef = useRef(null);
 
   useEffect(() => {
-    // Initialize scanner
-    const qrScanner = new Html5QrcodeScanner('qr-reader', {
+    // Create scanner instance
+    scannerRef.current = new Html5QrcodeScanner('qr-reader', {
       qrbox: {
         width: 250,
         height: 250,
       },
       fps: 10,
+      rememberLastUsedCamera: true,
     });
 
-    // Success callback
-    const success = (decodedText, decodedResult) => {
-      if (onScan) {
-        onScan(decodedText, decodedResult);
-        qrScanner.clear();
-      }
-    };
-
-    // Error callback
-    const error = (errorMessage) => {
-      if (onError) {
-        onError(errorMessage);
-      }
-    };
-
     // Start scanning
-    qrScanner.render(success, error);
-    setScanner(qrScanner);
+    scannerRef.current.render(
+      (decodedText) => {
+        if (onScan) {
+          onScan(decodedText);
+        }
+        toast.success('QR Code scanned successfully!');
+        // Stop scanning after successful scan
+        if (scannerRef.current) {
+          scannerRef.current.clear();
+        }
+      },
+      (error) => {
+        console.error('QR Code scanning failed:', error);
+      }
+    );
+
+    setScanning(true);
 
     // Cleanup
     return () => {
-      if (scanner) {
-        scanner.clear();
+      if (scannerRef.current) {
+        scannerRef.current.clear();
       }
     };
-  }, []);
+  }, [onScan]);
 
   return (
-    <div className="w-full max-w-md mx-auto">
-      <div id="qr-reader" className="rounded-lg overflow-hidden"></div>
+    <div className="qr-scanner-container">
+      <div id="qr-reader" className="qr-reader"></div>
+      {scanning && (
+        <div className="mt-4 text-center text-gray-400">
+          Position the QR code within the frame to scan
+        </div>
+      )}
       <style jsx>{`
-        #qr-reader {
+        .qr-scanner-container {
+          max-width: 600px;
+          margin: 0 auto;
+        }
+        .qr-reader {
+          width: 100%;
+          background: var(--bg-secondary);
+          border-radius: 12px;
+          overflow: hidden;
+          border: 2px solid var(--bg-accent);
+        }
+        :global(#qr-reader__scan_region) {
+          background: var(--bg-secondary) !important;
+        }
+        :global(#qr-reader__dashboard) {
+          background: var(--bg-secondary) !important;
+          border-top: 2px solid var(--bg-accent) !important;
+          padding: 1rem !important;
+        }
+        :global(#qr-reader__dashboard button) {
+          background: var(--primary) !important;
           border: none !important;
-          padding: 0 !important;
-        }
-        #qr-reader__scan_region {
-          background: #1f2937 !important;
-          border-radius: 0.5rem !important;
-        }
-        #qr-reader__scan_region img {
-          display: none;
-        }
-        #qr-reader__dashboard {
-          padding: 0 !important;
-          background: transparent !important;
-          border: none !important;
-        }
-        #qr-reader__dashboard button {
-          background: #00f2ea !important;
           color: black !important;
-          border: none !important;
           padding: 0.5rem 1rem !important;
-          border-radius: 0.5rem !important;
-          margin: 0.5rem !important;
+          border-radius: 6px !important;
           cursor: pointer !important;
-          font-weight: 500 !important;
-          transition: background-color 0.2s !important;
         }
-        #qr-reader__dashboard button:hover {
-          background: #00d8d8 !important;
-        }
-        #qr-reader__camera_selection {
-          background: #374151 !important;
-          border: 1px solid #4b5563 !important;
-          color: white !important;
+        :global(#qr-reader__camera_selection) {
+          background: var(--bg-primary) !important;
+          border: 1px solid var(--bg-accent) !important;
+          color: var(--text-primary) !important;
           padding: 0.5rem !important;
-          border-radius: 0.5rem !important;
-          margin: 0.5rem !important;
-          width: auto !important;
+          border-radius: 6px !important;
+          margin-bottom: 1rem !important;
         }
-        #qr-reader__status_span {
-          background: transparent !important;
-          color: #9ca3af !important;
-          font-size: 0.875rem !important;
+        :global(#qr-reader__status_span) {
+          color: var(--text-secondary) !important;
         }
       `}</style>
     </div>

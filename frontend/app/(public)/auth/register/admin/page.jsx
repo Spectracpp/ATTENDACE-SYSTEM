@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { LogoWithText } from '@/components/Logo';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/app/context/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { FaUser, FaEnvelope, FaLock, FaPhone, FaBuilding } from 'react-icons/fa';
 import OrganizationSelect from '@/app/components/OrganizationSelect';
 import DepartmentSelect from '@/app/components/DepartmentSelect'; // Import DepartmentSelect component
