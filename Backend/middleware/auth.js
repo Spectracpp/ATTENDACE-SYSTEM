@@ -24,61 +24,44 @@ const auth = async (req, res, next) => {
       return next();
     }
 
-    // Get token from different possible sources
-    let token;
-    
-    // Check Authorization header
-    const authHeader = req.header('Authorization');
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.substring(7);
-    }
-    
-    // Check query parameter
-    if (!token && req.query.token) {
-      token = req.query.token;
-    }
-    
-    // Check cookies
-    if (!token && req.cookies && req.cookies.token) {
-      token = req.cookies.token;
-    }
-
-    // Check if no token found
-    if (!token) {
-      return res.status(401).json({ 
-        message: 'No authentication token found. Please provide a token via Authorization header (Bearer token), query parameter (token), or cookie (token).'
+    // Get token from header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token found'
       });
     }
 
-    try {
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
-      // Get user from database
-      const user = await User.findById(decoded.id || decoded.userId).select('-password');
-      
-      if (!user) {
-        return res.status(401).json({ message: 'User not found' });
-      }
-
-      // Add user to request
-      req.user = user;
-      req.token = token;
-      
-      next();
-    } catch (tokenError) {
-      console.error('Token verification failed:', tokenError.message);
-      if (tokenError.name === 'TokenExpiredError') {
-        return res.status(401).json({ message: 'Token has expired' });
-      } else if (tokenError.name === 'JsonWebTokenError') {
-        return res.status(401).json({ message: 'Invalid token format' });
-      } else {
-        return res.status(401).json({ message: 'Token validation failed' });
-      }
+    const token = authHeader.split(' ')[1];
+    
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Get user from database
+    const user = await User.findById(decoded.id || decoded.userId).select('-password');
+    
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
     }
+
+    // Add user to request
+    req.user = user;
+    req.token = token;
+    
+    next();
   } catch (error) {
     console.error('Auth middleware error:', error);
-    res.status(500).json({ message: 'Server error during authentication' });
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      message: 'Server error during authentication'
+    });
   }
 };
 

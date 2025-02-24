@@ -356,22 +356,22 @@ router.get('/verify', auth, async (req, res) => {
  */
 router.get('/check', async (req, res) => {
   try {
-    // Get token from cookie
-    const token = req.cookies.token;
-    
-    if (!token) {
+    // Get token from header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
         message: 'No token found'
       });
     }
 
+    const token = authHeader.split(' ')[1];
+    
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Get user data
+    // Find user
     const user = await User.findById(decoded.user.id).select('-password');
-    
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -379,29 +379,22 @@ router.get('/check', async (req, res) => {
       });
     }
 
-    console.log('Auth check successful:', {
-      userId: user._id,
-      email: user.email,
-      role: user.role
-    });
-
-    res.json({
+    return res.json({
       success: true,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        department: user.department,
-        lastLogin: user.lastLogin
-      }
+      user
     });
 
   } catch (error) {
     console.error('Auth check error:', error);
-    res.status(401).json({
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token'
+      });
+    }
+    return res.status(500).json({
       success: false,
-      message: 'Token is not valid'
+      message: 'Server error during auth check'
     });
   }
 });

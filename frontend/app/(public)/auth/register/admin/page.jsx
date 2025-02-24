@@ -22,8 +22,12 @@ export default function AdminRegister() {
     email: '',
     password: '',
     confirmPassword: '',
-    organisation_uid: '',
-    user_id: '',
+    phone: '',
+    employeeId: '',
+    department: '',
+    role: 'admin',
+    organizationName: '',
+    registrationCode: ''
   });
 
   const [errors, setErrors] = useState({});
@@ -40,9 +44,15 @@ export default function AdminRegister() {
   const validateForm = () => {
     const newErrors = {};
 
-    // Name validation
+    // Name validation (2-50 characters, letters and spaces only)
     if (!formData.name.trim()) {
       newErrors.name = 'Name is required';
+    } else if (formData.name.length < 2) {
+      newErrors.name = 'Name must be at least 2 characters';
+    } else if (formData.name.length > 50) {
+      newErrors.name = 'Name cannot exceed 50 characters';
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.name)) {
+      newErrors.name = 'Name can only contain letters and spaces';
     }
 
     // Email validation
@@ -50,24 +60,45 @@ export default function AdminRegister() {
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required';
     } else if (!emailRegex.test(formData.email)) {
-      newErrors.email = 'Invalid email address';
+      newErrors.email = 'Please enter a valid email address';
     }
 
-    // User ID validation
-    if (!formData.user_id.trim()) {
-      newErrors.user_id = 'User ID is required';
+    // Phone validation (10 digits)
+    const phoneRegex = /^\d{10}$/;
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    } else if (!phoneRegex.test(formData.phone)) {
+      newErrors.phone = 'Please enter a valid 10-digit phone number';
     }
 
-    // Organization UID validation
-    if (!formData.organisation_uid.trim()) {
-      newErrors.organisation_uid = 'Organization ID is required';
+    // Employee ID validation
+    if (!formData.employeeId.trim()) {
+      newErrors.employeeId = 'Employee ID is required';
     }
 
-    // Password validation
+    // Department validation
+    if (!formData.department.trim()) {
+      newErrors.department = 'Department is required';
+    }
+
+    // Organization Name validation
+    if (!formData.organizationName.trim()) {
+      newErrors.organizationName = 'Organization Name is required';
+    }
+
+    // Registration Code validation
+    if (!formData.registrationCode.trim()) {
+      newErrors.registrationCode = 'Admin registration code is required';
+    }
+
+    // Password validation (at least 6 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char)
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/;
     if (!formData.password) {
       newErrors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    } else if (!passwordRegex.test(formData.password)) {
+      newErrors.password = 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character';
     }
 
     // Confirm password validation
@@ -93,7 +124,7 @@ export default function AdminRegister() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           email: formData.email,
-          organisation_uid: formData.organisation_uid 
+          organisation_uid: formData.organizationName 
         }),
       });
 
@@ -113,7 +144,7 @@ export default function AdminRegister() {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, role: 'admin' }),
+        body: JSON.stringify({ ...formData }),
       });
 
       const data = await response.json();
@@ -227,6 +258,25 @@ export default function AdminRegister() {
                   {errors.email && <p className={errorClasses}>{errors.email}</p>}
                 </div>
 
+                {/* Phone Input */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <UserIcon className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      placeholder="Phone number"
+                      className={`${inputBaseClasses} ${errors.phone ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {errors.phone && <p className={errorClasses}>{errors.phone}</p>}
+                </div>
+
                 {/* Password Input */}
                 <div>
                   <div className="relative">
@@ -270,7 +320,7 @@ export default function AdminRegister() {
               <div className="space-y-4">
                 <h2 className="text-xl font-semibold mb-4 cyberpunk-text-gradient">Organization Information</h2>
 
-                {/* User ID Input */}
+                {/* Employee ID Input */}
                 <div>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -278,18 +328,37 @@ export default function AdminRegister() {
                     </div>
                     <input
                       type="text"
-                      name="user_id"
-                      value={formData.user_id}
+                      name="employeeId"
+                      value={formData.employeeId}
                       onChange={handleChange}
-                      placeholder="User ID"
-                      className={`${inputBaseClasses} ${errors.user_id ? 'border-red-500' : ''}`}
+                      placeholder="Employee ID"
+                      className={`${inputBaseClasses} ${errors.employeeId ? 'border-red-500' : ''}`}
                       disabled={isLoading}
                     />
                   </div>
-                  {errors.user_id && <p className={errorClasses}>{errors.user_id}</p>}
+                  {errors.employeeId && <p className={errorClasses}>{errors.employeeId}</p>}
                 </div>
 
-                {/* Organization UID Input */}
+                {/* Department Input */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <UserIcon className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      name="department"
+                      value={formData.department}
+                      onChange={handleChange}
+                      placeholder="Department"
+                      className={`${inputBaseClasses} ${errors.department ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {errors.department && <p className={errorClasses}>{errors.department}</p>}
+                </div>
+
+                {/* Organization Name Input */}
                 <div>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -297,15 +366,34 @@ export default function AdminRegister() {
                     </div>
                     <input
                       type="text"
-                      name="organisation_uid"
-                      value={formData.organisation_uid}
+                      name="organizationName"
+                      value={formData.organizationName}
                       onChange={handleChange}
-                      placeholder="Organization ID"
-                      className={`${inputBaseClasses} ${errors.organisation_uid ? 'border-red-500' : ''}`}
+                      placeholder="Organization Name"
+                      className={`${inputBaseClasses} ${errors.organizationName ? 'border-red-500' : ''}`}
                       disabled={isLoading}
                     />
                   </div>
-                  {errors.organisation_uid && <p className={errorClasses}>{errors.organisation_uid}</p>}
+                  {errors.organizationName && <p className={errorClasses}>{errors.organizationName}</p>}
+                </div>
+
+                {/* Registration Code Input */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <KeyIcon className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      name="registrationCode"
+                      value={formData.registrationCode}
+                      onChange={handleChange}
+                      placeholder="Admin registration code"
+                      className={`${inputBaseClasses} ${errors.registrationCode ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {errors.registrationCode && <p className={errorClasses}>{errors.registrationCode}</p>}
                 </div>
               </div>
             </div>

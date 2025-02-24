@@ -16,7 +16,6 @@ import { LogoWithText } from '@/components/Logo';
 import Link from 'next/link';
 import SelectField from '@/components/common/SelectField';
 import { courses, departments, semesters } from '@/data/formOptions';
-import '@/styles/animations.css';
 
 export default function UserRegister() {
   const router = useRouter();
@@ -27,11 +26,12 @@ export default function UserRegister() {
     password: '',
     confirmPassword: '',
     phone: '',
-    role: 'user', // Default role for user registration
+    role: 'user',
     studentId: '',
     course: '',
     semester: '',
     department: '',
+    organizationName: ''
   });
 
   const [errors, setErrors] = useState({});
@@ -39,6 +39,7 @@ export default function UserRegister() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -47,13 +48,15 @@ export default function UserRegister() {
   const validateForm = () => {
     const newErrors = {};
 
-    // Name validation (letters and spaces only)
+    // Name validation (2-50 characters, letters and spaces only)
     if (!formData.name.trim()) {
       newErrors.name = 'Name is required';
+    } else if (formData.name.length < 2) {
+      newErrors.name = 'Name must be at least 2 characters';
+    } else if (formData.name.length > 50) {
+      newErrors.name = 'Name cannot exceed 50 characters';
     } else if (!/^[a-zA-Z\s]+$/.test(formData.name)) {
       newErrors.name = 'Name can only contain letters and spaces';
-    } else if (formData.name.length < 2 || formData.name.length > 50) {
-      newErrors.name = 'Name must be between 2 and 50 characters';
     }
 
     // Email validation
@@ -61,7 +64,7 @@ export default function UserRegister() {
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required';
     } else if (!emailRegex.test(formData.email)) {
-      newErrors.email = 'Invalid email address';
+      newErrors.email = 'Please enter a valid email address';
     }
 
     // Phone validation (10 digits)
@@ -92,19 +95,19 @@ export default function UserRegister() {
       newErrors.department = 'Department is required';
     }
 
-    // Password validation
+    // Organization Name validation
+    if (!formData.organizationName.trim()) {
+      newErrors.organizationName = 'Organization Name is required';
+    }
+
+    // Password validation (at least 6 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char)
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/;
     if (!formData.password) {
       newErrors.password = 'Password is required';
     } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters';
-    } else if (!/(?=.*[a-z])/.test(formData.password)) {
-      newErrors.password = 'Password must contain at least one lowercase letter';
-    } else if (!/(?=.*[A-Z])/.test(formData.password)) {
-      newErrors.password = 'Password must contain at least one uppercase letter';
-    } else if (!/(?=.*\d)/.test(formData.password)) {
-      newErrors.password = 'Password must contain at least one number';
-    } else if (!/(?=.*[@$!%*?&])/.test(formData.password)) {
-      newErrors.password = 'Password must contain at least one special character';
+    } else if (!passwordRegex.test(formData.password)) {
+      newErrors.password = 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character';
     }
 
     // Confirm password validation
@@ -128,7 +131,10 @@ export default function UserRegister() {
       const checkEmailResponse = await fetch('/api/auth/check-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.email }),
+        body: JSON.stringify({ 
+          email: formData.email,
+          organizationName: formData.organizationName 
+        }),
       });
 
       if (!checkEmailResponse.ok) {
@@ -136,9 +142,9 @@ export default function UserRegister() {
         if (checkEmailResponse.status === 409) {
           setErrors(prev => ({
             ...prev,
-            email: 'This email is already registered'
+            email: 'This email is already registered in this organization'
           }));
-          toast.error('This email is already registered');
+          toast.error('This email is already registered in this organization');
           return;
         }
       }
@@ -147,7 +153,7 @@ export default function UserRegister() {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData }),
       });
 
       const data = await response.json();
@@ -174,42 +180,37 @@ export default function UserRegister() {
     }
   };
 
-  const inputBaseClasses = "input-focus-animation block w-full pl-11 pr-4 py-3 bg-black/50 backdrop-blur-xl border border-[#ff0080]/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-[#ff0080] focus:ring-1 focus:ring-[#ff0080] transition-colors";
-  const errorClasses = "mt-1 text-sm text-red-500 animate-glitch";
-  const iconClasses = "h-5 w-5 text-[#ff0080] animate-pulse";
+  const inputBaseClasses = "block w-full pl-11 pr-4 py-3 bg-black/50 backdrop-blur-xl border border-[#ff0080]/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-[#ff0080] focus:ring-1 focus:ring-[#ff0080] transition-colors";
+  const errorClasses = "mt-1 text-sm text-red-500";
+  const iconClasses = "h-5 w-5 text-[#ff0080]";
 
   return (
-    <div className="min-h-screen flex bg-black/90 relative overflow-hidden">
+    <div className="min-h-screen flex bg-black/90 relative">
       {/* Animated background */}
-      <div className="absolute inset-0 grid-bg opacity-5"></div>
-      <div className="absolute inset-0 digital-rain"></div>
-      <div className="scanline"></div>
+      <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+      <div className="absolute inset-0 animated-bg"></div>
 
       {/* Left Side - Form */}
       <div className="w-full lg:w-[60%] p-4 sm:p-6 md:p-8 lg:p-12 flex flex-col justify-center relative z-10">
         <div className="w-full max-w-2xl mx-auto">
           <div className="text-center mb-8">
-            <div className="hover-lift mb-6">
-              <LogoWithText className="h-12 mx-auto" />
-            </div>
-            <h1 className="text-4xl font-bold mb-3 hover-glitch">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#ff0080] via-[#7928ca] to-[#4a1b9a] animate-neon">
-                Student
-              </span>{' '}
+            <LogoWithText className="h-12 mx-auto mb-6" />
+            <h1 className="text-4xl font-bold mb-3">
+              <span className="cyberpunk-text-gradient">Student</span>{' '}
               <span className="text-white">Registration</span>
             </h1>
             <div className="text-sm text-gray-400">
               Already have an account?{' '}
               <Link 
                 href="/auth/login/user" 
-                className="text-transparent bg-clip-text bg-gradient-to-r from-[#ff0080] to-[#7928ca] hover:from-[#7928ca] hover:to-[#4a1b9a] transition-all duration-300"
+                className="text-[#ff0080] hover:text-[#ff0080]/80 transition-colors"
               >
                 Sign In
               </Link>
               {' | '}
               <Link 
                 href="/auth/register/admin" 
-                className="text-transparent bg-clip-text bg-gradient-to-r from-[#7928ca] to-[#4a1b9a] hover:from-[#ff0080] hover:to-[#7928ca] transition-all duration-300"
+                className="text-[#ff0080] hover:text-[#ff0080]/80 transition-colors"
               >
                 Admin Registration
               </Link>
@@ -217,7 +218,7 @@ export default function UserRegister() {
           </div>
 
           {errors.serverError && (
-            <div className="mb-6 p-4 cyberpunk-card border-red-500/50 text-red-500 text-sm animate-glitch">
+            <div className="mb-6 p-4 cyberpunk-card border-red-500/50 text-red-500 text-sm">
               {errors.serverError}
             </div>
           )}
@@ -225,10 +226,8 @@ export default function UserRegister() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Personal Information */}
-              <div className="space-y-4 cyberpunk-card p-6 hover-lift bg-gradient-to-br from-black via-black to-[#4a1b9a]/10">
-                <h2 className="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-[#ff0080] to-[#7928ca] animate-neon">
-                  Personal Information
-                </h2>
+              <div className="space-y-4">
+                <h2 className="text-xl font-semibold mb-4 cyberpunk-text-gradient">Personal Information</h2>
                 
                 {/* Name Input */}
                 <div>
@@ -287,6 +286,44 @@ export default function UserRegister() {
                   {errors.phone && <p className={errorClasses}>{errors.phone}</p>}
                 </div>
 
+                {/* Student ID Input */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <IdentificationIcon className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      name="studentId"
+                      value={formData.studentId}
+                      onChange={handleChange}
+                      placeholder="Student ID"
+                      className={`${inputBaseClasses} ${errors.studentId ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {errors.studentId && <p className={errorClasses}>{errors.studentId}</p>}
+                </div>
+
+                {/* Organization Name Input */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <IdentificationIcon className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      name="organizationName"
+                      value={formData.organizationName}
+                      onChange={handleChange}
+                      placeholder="Organization Name"
+                      className={`${inputBaseClasses} ${errors.organizationName ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {errors.organizationName && <p className={errorClasses}>{errors.organizationName}</p>}
+                </div>
+
                 {/* Password Input */}
                 <div>
                   <div className="relative">
@@ -327,30 +364,9 @@ export default function UserRegister() {
               </div>
 
               {/* Academic Information */}
-              <div className="space-y-4 cyberpunk-card p-6 hover-lift bg-gradient-to-br from-black via-black to-[#4a1b9a]/10">
-                <h2 className="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-[#7928ca] to-[#4a1b9a] animate-neon">
-                  Academic Information
-                </h2>
+              <div className="space-y-4">
+                <h2 className="text-xl font-semibold mb-4 cyberpunk-text-gradient">Academic Information</h2>
                 
-                {/* Student ID Input */}
-                <div>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <IdentificationIcon className={iconClasses} />
-                    </div>
-                    <input
-                      type="text"
-                      name="studentId"
-                      value={formData.studentId}
-                      onChange={handleChange}
-                      placeholder="Student ID"
-                      className={`${inputBaseClasses} ${errors.studentId ? 'border-red-500' : ''}`}
-                      disabled={isLoading}
-                    />
-                  </div>
-                  {errors.studentId && <p className={errorClasses}>{errors.studentId}</p>}
-                </div>
-
                 {/* Course Select */}
                 <SelectField
                   value={formData.course}
@@ -387,13 +403,9 @@ export default function UserRegister() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="cyberpunk-button w-full button-animation bg-gradient-to-r from-[#ff0080] via-[#7928ca] to-[#4a1b9a]"
+                className="cyberpunk-button w-full"
               >
-                {isLoading ? (
-                  <span className="loading-animation">Creating Account...</span>
-                ) : (
-                  'Create Student Account'
-                )}
+                {isLoading ? 'Creating Account...' : 'Create Student Account'}
               </button>
             </div>
           </form>
@@ -405,14 +417,10 @@ export default function UserRegister() {
         <div className="absolute inset-0 bg-gradient-to-l from-black/90 to-transparent z-10"></div>
         <div className="h-full flex items-center justify-center p-12 relative z-20">
           <div className="max-w-xl text-center">
-            <h2 className="text-5xl font-bold mb-6 hover-glitch">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#ff0080] via-[#7928ca] to-[#4a1b9a] animate-neon">
-                Join
-              </span>{' '}
+            <h2 className="text-5xl font-bold mb-6">
+              <span className="cyberpunk-text-gradient">Join</span>{' '}
               <span className="text-white">The</span>{' '}
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#7928ca] to-[#4a1b9a] animate-neon">
-                Future
-              </span>
+              <span className="cyberpunk-text-gradient">Future</span>
             </h2>
             <p className="text-xl text-gray-400 mb-8">
               Experience the next generation of attendance tracking with our gamified system.
@@ -426,12 +434,10 @@ export default function UserRegister() {
               ].map((item, index) => (
                 <div 
                   key={index} 
-                  className="cyberpunk-card p-4 hover-lift group transition-transform bg-gradient-to-br from-black via-black to-[#4a1b9a]/10"
+                  className="cyberpunk-card p-4"
                 >
-                  <div className="text-3xl mb-2 group-hover:animate-pulse">{item.icon}</div>
-                  <div className="text-sm text-gray-400 group-hover:text-white transition-colors">
-                    {item.label}
-                  </div>
+                  <div className="text-3xl mb-2">{item.icon}</div>
+                  <div className="text-sm text-gray-400">{item.label}</div>
                 </div>
               ))}
             </div>
