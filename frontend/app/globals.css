@@ -86,6 +86,55 @@
     @apply animate-spin rounded-full border-2 border-[var(--bg-accent)];
     border-top-color: var(--primary);
   }
+
+  .cyberpunk-gradient {
+    @apply bg-gradient-to-r from-[#ff0080] via-[#7928ca] to-[#4f46e5];
+  }
+  
+  .cyberpunk-card {
+    @apply bg-black/80 backdrop-blur-lg border border-[#ff0080]/20 rounded-lg shadow-lg shadow-[#ff0080]/10;
+  }
+
+  .cyberpunk-text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#ff0080] via-[#7928ca] to-[#4f46e5];
+  }
+
+  .cyberpunk-button {
+    @apply px-6 py-2 rounded-lg font-medium transition-all duration-300
+           bg-gradient-to-r from-[#ff0080] via-[#7928ca] to-[#4f46e5]
+           hover:from-[#4f46e5] hover:via-[#7928ca] hover:to-[#ff0080]
+           text-white shadow-lg shadow-[#ff0080]/20
+           hover:shadow-[#4f46e5]/20;
+  }
+
+  .cyberpunk-input {
+    @apply bg-black/50 border border-[#ff0080]/20 rounded-lg px-4 py-2
+           focus:outline-none focus:border-[#ff0080] focus:ring-1 focus:ring-[#ff0080]
+           text-white placeholder-gray-400;
+  }
+
+  .cyberpunk-table {
+    @apply min-w-full divide-y divide-[#ff0080]/20;
+  }
+
+  .cyberpunk-table th {
+    @apply px-6 py-3 text-left text-xs font-medium uppercase tracking-wider
+           text-[#ff0080] bg-black/50;
+  }
+
+  .cyberpunk-table td {
+    @apply px-6 py-4 whitespace-nowrap text-gray-300 bg-black/30;
+  }
+
+  .cyberpunk-card-gradient {
+    @apply relative overflow-hidden;
+  }
+
+  .cyberpunk-card-gradient::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-[#ff0080]/10 via-[#7928ca]/10 to-[#4f46e5]/10
+           opacity-50 pointer-events-none;
+  }
 }
 
 @layer utilities {
@@ -107,6 +156,22 @@
   .sidebar-closed {
     @apply -translate-x-full;
   }
+}
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 10, 10, 20;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+    to bottom right,
+    rgb(var(--background-start-rgb)),
+    rgb(var(--background-end-rgb))
+  );
+  min-height: 100vh;
 }
 
 /* Animated Background - Keep outside layers as it uses custom animation */

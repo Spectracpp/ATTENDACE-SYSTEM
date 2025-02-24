@@ -1,36 +1,46 @@
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { Providers } from './providers';
-import { Box, Container } from '@mui/material';
+import { Toaster } from 'react-hot-toast';
+import { AuthProvider } from '@/context/AuthContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'AttendEase - Modern Attendance Management',
-  description: 'Streamline your attendance tracking with AttendEase',
+  title: 'Attendance System',
+  description: 'Modern attendance tracking system',
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body className={inter.className} style={{ margin: 0, padding: 0 }}>
-        <Providers>
-          <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-            <Box
-              component="main"
-              sx={{
-                flexGrow: 1,
-                bgcolor: 'background.default',
-                pt: { xs: 2, sm: 3 },
-                pb: { xs: 2, sm: 3 },
+    <html lang="en" className="dark">
+      <body className={`${inter.className} min-h-screen bg-gradient-to-br from-black via-gray-900 to-[#0f0f1a]`}>
+        <div className="min-h-screen backdrop-blur-3xl">
+          <AuthProvider>
+            {children}
+            <Toaster 
+              position="top-right"
+              toastOptions={{
+                style: {
+                  background: 'rgba(0,0,0,0.9)',
+                  color: '#fff',
+                  border: '1px solid rgba(255,0,128,0.2)',
+                },
+                success: {
+                  iconTheme: {
+                    primary: '#ff0080',
+                    secondary: '#000',
+                  },
+                },
+                error: {
+                  iconTheme: {
+                    primary: '#ff0080',
+                    secondary: '#000',
+                  },
+                },
               }}
-            >
-              <Container maxWidth="xl">
-                {children}
-              </Container>
-            </Box>
-          </Box>
-        </Providers>
+            />
+          </AuthProvider>
+        </div>
       </body>
     </html>
   );

@@ -71,7 +71,12 @@ export function AuthProvider({ children }) {
       if (response.ok && data.success) {
         setUser(data.user);
         toast.success('Logged in successfully');
-        router.push('/dashboard');
+        // Redirect based on user role
+        if (data.user.role === 'admin') {
+          router.push('/admin/dashboard');
+        } else {
+          router.push('/dashboard');
+        }
         return { success: true };
       } else {
         toast.error(data.message || 'Login failed');
