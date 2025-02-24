@@ -61,15 +61,17 @@ const rewards = [
 ];
 
 const RewardCard = ({ reward }) => (
-  <div className="reward-card min-w-[280px] p-6 mx-4 cyber-border bg-background/80 backdrop-blur-sm transform transition-all duration-500 hover:scale-105 hover:bg-accent-1/50">
+  <div className="cyberpunk-card min-w-[300px] p-6 mx-4 transform transition-all duration-500 hover:scale-105 group cursor-pointer">
     <div className="flex items-center justify-between mb-4">
-      <span className="text-4xl">{reward.icon}</span>
-      <div className="flex items-center space-x-1">
-        <span className="text-primary font-bold">{reward.tokens}</span>
-        <span className="text-primary">🪙</span>
+      <div className="p-3 rounded-lg bg-[#ff0080]/10 border border-[#ff0080]/20 group-hover:border-[#ff0080]/40 transition-colors">
+        <span className="text-4xl">{reward.icon}</span>
+      </div>
+      <div className="flex items-center space-x-2 px-3 py-1 rounded-full bg-[#ff0080]/10 border border-[#ff0080]/20">
+        <span className="text-white font-bold">{reward.tokens}</span>
+        <span className="text-[#ff0080]">🪙</span>
       </div>
     </div>
-    <h3 className="text-xl font-bold mb-2 gradient-text">{reward.name}</h3>
+    <h3 className="text-xl font-bold mb-2 group-hover:text-[#ff0080] transition-colors">{reward.name}</h3>
     <p className="text-gray-400 text-sm">{reward.description}</p>
   </div>
 );
@@ -99,17 +101,16 @@ const RewardsSlideshow = () => {
     scrollContainer.addEventListener('mouseleave', handleMouseLeave);
 
     const animate = () => {
-      if (!isHovered && scrollContainer) {
-        currentScroll += direction * 0.5;
+      if (!isHovered) {
+        currentScroll += direction;
 
-        if (currentScroll >= totalWidth / 2) {
-          currentScroll = 0;
-        }
-        if (currentScroll < 0) {
-          currentScroll = totalWidth / 2;
+        if (currentScroll >= totalWidth - viewportWidth) {
+          direction = -1;
+        } else if (currentScroll <= 0) {
+          direction = 1;
         }
 
-        scrollContainer.style.transform = `translateX(-${currentScroll}px)`;
+        scrollContainer.scrollLeft = currentScroll;
       }
       requestAnimationFrame(animate);
     };
@@ -122,36 +123,33 @@ const RewardsSlideshow = () => {
     };
   }, []);
 
-  // Duplicate the rewards array to create a seamless loop
-  const duplicatedRewards = [...rewards, ...rewards];
-
   return (
-    <section className="py-20 overflow-hidden relative bg-gradient-to-b from-background via-accent-1/20 to-background">
-      <div className="max-w-7xl mx-auto">
-        <h2 className="text-4xl font-bold text-center mb-12 gradient-text animate-pulse-slow px-4">
-          Available Rewards
+    <div className="w-full py-20 overflow-hidden bg-black/50 backdrop-blur-xl relative">
+      {/* Gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-black z-10 pointer-events-none"></div>
+      
+      <div className="container mx-auto px-4">
+        <h2 className="text-4xl font-bold mb-12 text-center">
+          <span className="cyberpunk-text-gradient">Featured</span>{' '}
+          <span className="text-white">Rewards</span>
         </h2>
-        
-        <div className="relative">
-          {/* Gradient overlays */}
-          <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-background via-background/80 to-transparent z-10"></div>
-          <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-background via-background/80 to-transparent z-10"></div>
-          
-          {/* Scrolling container */}
-          <div className="overflow-hidden">
-            <div 
-              className="flex py-8 transition-transform duration-300 ease-linear"
-              style={{ willChange: 'transform' }}
-              ref={scrollRef}
-            >
-              {duplicatedRewards.map((reward, index) => (
-                <RewardCard key={`${reward.id}-${index}`} reward={reward} />
-              ))}
-            </div>
-          </div>
+      </div>
+
+      <div 
+        ref={scrollRef}
+        className="flex overflow-x-hidden relative"
+        style={{ 
+          WebkitMaskImage: 'linear-gradient(to right, transparent, black 10%, black 90%, transparent)',
+          maskImage: 'linear-gradient(to right, transparent, black 10%, black 90%, transparent)'
+        }}
+      >
+        <div className="flex">
+          {[...rewards, ...rewards].map((reward, index) => (
+            <RewardCard key={`${reward.id}-${index}`} reward={reward} />
+          ))}
         </div>
       </div>
-    </section>
+    </div>
   );
 };
 

@@ -6,6 +6,15 @@ import toast from 'react-hot-toast';
 
 export const AuthContext = createContext(null);
 
+// List of public routes that don't require authentication
+const PUBLIC_ROUTES = [
+  '/',
+  '/auth/login/user',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/verify-email'
+];
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -14,6 +23,10 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     checkAuth();
   }, []);
+
+  const isPublicRoute = (path) => {
+    return PUBLIC_ROUTES.some(route => path.startsWith(route));
+  };
 
   const checkAuth = async () => {
     try {
@@ -30,10 +43,20 @@ export function AuthProvider({ children }) {
         setUser(data);
       } else {
         setUser(null);
+        // Only redirect to login if not on a public route
+        const currentPath = window.location.pathname;
+        if (!isPublicRoute(currentPath)) {
+          router.push('/auth/login');
+        }
       }
     } catch (error) {
       console.error('Auth check failed:', error);
       setUser(null);
+      // Only redirect to login if not on a public route
+      const currentPath = window.location.pathname;
+      if (!isPublicRoute(currentPath)) {
+        router.push('/auth/login');
+      }
     } finally {
       setLoading(false);
     }
@@ -78,7 +101,8 @@ export function AuthProvider({ children }) {
       if (response.ok) {
         setUser(null);
         toast.success('Logged out successfully');
-        router.push('/');
+        // Force navigation to home page
+        window.location.href = '/';
       } else {
         toast.error('Logout failed');
       }
@@ -104,8 +128,8 @@ export function AuthProvider({ children }) {
       const data = await response.json();
 
       if (response.ok) {
-        toast.success('Registration successful! Please verify your email.');
-        router.push('/auth/login/' + userData.role);
+        toast.success('Registration successful! Please login.');
+        router.push('/auth/login');
       } else {
         toast.error(data.message || 'Registration failed');
       }
@@ -153,5 +177,9 @@ export function AuthProvider({ children }) {
     updateUser,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }

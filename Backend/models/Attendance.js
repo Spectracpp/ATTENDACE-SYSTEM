@@ -1,25 +1,19 @@
 const mongoose = require('mongoose');
 
-const AttendanceSchema = new mongoose.Schema({
+const attendanceSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  organization: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Organization',
-    required: true
-  },
-  qrCode: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'QRCode',
-    required: true
-  },
-  status: {
+  type: {
     type: String,
-    enum: ['present', 'late', 'absent', 'excused'],
-    default: 'present'
+    enum: ['in', 'out'],
+    required: true
+  },
+  date: {
+    type: Date,
+    default: Date.now
   },
   location: {
     type: {
@@ -29,67 +23,24 @@ const AttendanceSchema = new mongoose.Schema({
     },
     coordinates: {
       type: [Number],
-      required: false
+      default: [0, 0]
     }
   },
   device: {
-    type: {
-      type: String,
-      enum: ['mobile', 'tablet', 'desktop'],
-      required: false
-    },
-    userAgent: String,
-    ip: String,
-    deviceId: String
+    type: String,
+    default: ''
   }
 }, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  timestamps: true
 });
 
-// Indexes
-AttendanceSchema.index({ user: 1, qrCode: 1 }, { unique: true });
-AttendanceSchema.index({ organization: 1, createdAt: -1 });
-AttendanceSchema.index({ location: '2dsphere' });
+// Index for location-based queries
+attendanceSchema.index({ location: '2dsphere' });
 
-// Methods
-AttendanceSchema.methods.isLate = function() {
-  if (!this.qrCode) return false;
-  return this.createdAt > this.qrCode.validFrom;
-};
+// Index for faster queries by date
+attendanceSchema.index({ date: -1 });
 
-// Statics
-AttendanceSchema.statics.getStatistics = async function(organizationId, startDate, endDate) {
-  const match = {
-    organization: mongoose.Types.ObjectId(organizationId)
-  };
+// Index for faster user queries
+attendanceSchema.index({ user: 1, date: -1 });
 
-  if (startDate && endDate) {
-    match.createdAt = {
-      $gte: new Date(startDate),
-      $lte: new Date(endDate)
-    };
-  }
-
-  return this.aggregate([
-    { $match: match },
-    {
-      $group: {
-        _id: '$status',
-        count: { $sum: 1 },
-        users: { $addToSet: '$user' }
-      }
-    },
-    {
-      $project: {
-        status: '$_id',
-        count: 1,
-        uniqueUsers: { $size: '$users' },
-        _id: 0
-      }
-    }
-  ]);
-};
-
-module.exports = mongoose.model('Attendance', AttendanceSchema);
+module.exports = mongoose.model('Attendance', attendanceSchema);

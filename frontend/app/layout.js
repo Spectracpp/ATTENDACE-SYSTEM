@@ -16,13 +16,11 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body className={`${spaceGrotesk.variable} animated-bg`}>
+    <html lang="en" className="w-full h-full p-0 m-0">
+      <body className={`${spaceGrotesk.variable} animated-bg w-full h-full p-0 m-0`}>
         <AuthProvider>
           <ThemeProvider>
-            <main className="min-h-screen">
-              {children}
-            </main>
+            {children}
             <Toaster 
               position="top-right" 
               toastOptions={{

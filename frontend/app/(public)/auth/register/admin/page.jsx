@@ -1,85 +1,17 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
+import {
+  UserIcon,
+  EnvelopeIcon,
+  KeyIcon,
+  BuildingOffice2Icon as BuildingOfficeIcon,
+} from '@heroicons/react/24/outline';
 import { LogoWithText } from '@/components/Logo';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { FaUser, FaEnvelope, FaLock, FaPhone, FaBuilding } from 'react-icons/fa';
-import OrganizationSelect from '@/app/components/OrganizationSelect';
-import DepartmentSelect from '@/app/components/DepartmentSelect'; // Import DepartmentSelect component
-import toast from 'react-hot-toast';
-
-// Enhanced validation functions
-const validateName = (name) => {
-  if (!name) return 'Name is required';
-  const trimmedName = name.trim();
-  if (!trimmedName) return 'Name cannot be empty';
-  if (!/^[a-zA-Z\s]{2,50}$/.test(trimmedName)) {
-    return 'Name must be 2-50 characters long and contain only letters and spaces';
-  }
-  return '';
-};
-
-const validateEmail = (email) => {
-  if (!email) return 'Email is required';
-  const trimmedEmail = email.trim();
-  if (!trimmedEmail) return 'Email cannot be empty';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-    return 'Please enter a valid email address';
-  }
-  return '';
-};
-
-const validatePassword = (password) => {
-  if (!password) return 'Password is required';
-  if (password.length < 6) return 'Password must be at least 6 characters long';
-  if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
-  if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter';
-  if (!/\d/.test(password)) return 'Password must contain at least one number';
-  if (!/[@$!%*?&]/.test(password)) return 'Password must contain at least one special character (@$!%*?&)';
-  return '';
-};
-
-const validateConfirmPassword = (password, confirmPassword) => {
-  if (!confirmPassword) return 'Please confirm your password';
-  if (password !== confirmPassword) return 'Passwords do not match';
-  return '';
-};
-
-const validatePhone = (phone) => {
-  if (!phone) return 'Phone number is required';
-  const trimmedPhone = phone.replace(/\D/g, '');
-  if (!trimmedPhone) return 'Phone number cannot be empty';
-  if (!/^\d{10}$/.test(trimmedPhone)) {
-    return 'Please enter a valid 10-digit phone number';
-  }
-  return '';
-};
-
-const validateOrganizationName = (name) => {
-  if (!name) return 'Organization name is required';
-  const trimmedName = name.trim();
-  if (!trimmedName) return 'Organization name cannot be empty';
-  if (!/^[a-zA-Z0-9\s\-&]{2,100}$/.test(trimmedName)) {
-    return 'Organization name must be 2-100 characters long and can contain letters, numbers, spaces, hyphens, and &';
-  }
-  return '';
-};
-
-const validateRegistrationCode = (code) => {
-  if (!code) return 'Registration code is required';
-  const trimmedCode = code.trim();
-  if (!trimmedCode) return 'Registration code cannot be empty';
-  return '';
-};
-
-const validateDepartment = (department) => {
-  if (!department) return 'Department is required';
-  const trimmedDepartment = department.trim();
-  if (!trimmedDepartment) return 'Department cannot be empty';
-  return '';
-};
 
 export default function AdminRegister() {
   const router = useRouter();
@@ -90,79 +22,79 @@ export default function AdminRegister() {
     email: '',
     password: '',
     confirmPassword: '',
-    phone: '',
-    organizationName: '',
-    registrationCode: '',
-    department: ''
+    organisation_uid: '',
+    user_id: '',
   });
 
   const [errors, setErrors] = useState({});
-  const [serverError, setServerError] = useState('');
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {};
-    
-    // Validate all fields
-    const validations = {
-      name: validateName(formData.name),
-      email: validateEmail(formData.email),
-      password: validatePassword(formData.password),
-      confirmPassword: validateConfirmPassword(formData.password, formData.confirmPassword),
-      phone: validatePhone(formData.phone),
-      organizationName: validateOrganizationName(formData.organizationName),
-      registrationCode: validateRegistrationCode(formData.registrationCode),
-      department: validateDepartment(formData.department)
-    };
 
-    // Add any validation errors to the errors object
-    Object.entries(validations).forEach(([field, error]) => {
-      if (error) {
-        newErrors[field] = error;
-      }
-    });
+    // Name validation
+    if (!formData.name.trim()) {
+      newErrors.name = 'Name is required';
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!emailRegex.test(formData.email)) {
+      newErrors.email = 'Invalid email address';
+    }
+
+    // User ID validation
+    if (!formData.user_id.trim()) {
+      newErrors.user_id = 'User ID is required';
+    }
+
+    // Organization UID validation
+    if (!formData.organisation_uid.trim()) {
+      newErrors.organisation_uid = 'Organization ID is required';
+    }
+
+    // Password validation
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters';
+    }
+
+    // Confirm password validation
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
-    setServerError('');
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setServerError('');
-    setErrors({});  // Clear previous errors
-
-    if (!validateForm()) {
-      toast.error('Please fix the form errors before submitting');
-      return;
-    }
+    if (!validateForm()) return;
 
     setIsLoading(true);
-
     try {
-      // Prepare registration data
-      const registrationData = {
-        ...formData,
-        role: 'admin',
-      };
-      delete registrationData.confirmPassword;
-
       // First check if email exists
       const checkEmailResponse = await fetch('/api/auth/check-email', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: formData.email }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: formData.email,
+          organisation_uid: formData.organisation_uid 
+        }),
       });
 
       if (!checkEmailResponse.ok) {
@@ -170,270 +102,253 @@ export default function AdminRegister() {
         if (checkEmailResponse.status === 409) {
           setErrors(prev => ({
             ...prev,
-            email: 'This email is already registered'
+            email: 'This email is already registered in this organization'
           }));
-          toast.error('This email is already registered');
+          toast.error('This email is already registered in this organization');
           return;
         }
       }
 
-      // Proceed with registration if email is available
+      // Proceed with registration
       const response = await fetch('/api/auth/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(registrationData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, role: 'admin' }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
         if (response.status === 409) {
-          // Handle specific duplicate field errors
-          if (data.field === 'email') {
-            setErrors(prev => ({
-              ...prev,
-              email: 'This email is already registered'
-            }));
-            toast.error('This email is already registered');
-          } else if (data.field === 'phone') {
-            setErrors(prev => ({
-              ...prev,
-              phone: 'This phone number is already registered'
-            }));
-            toast.error('This phone number is already registered');
-          } else {
-            setErrors(prev => ({
-              ...prev,
-              [data.field || 'email']: `This ${data.field || 'email'} is already registered`
-            }));
-            toast.error(`This ${data.field || 'email'} is already registered`);
-          }
-        } else if (data.missingFields) {
-          // Handle missing fields
-          const newErrors = {};
-          data.missingFields.forEach(field => {
-            newErrors[field] = `${field} is required`;
-          });
-          setErrors(prev => ({ ...prev, ...newErrors }));
-          toast.error('Please fill in all required fields');
-        } else if (data.validationErrors) {
-          // Handle validation errors from backend
-          setErrors(prev => ({ ...prev, ...data.validationErrors }));
-          toast.error('Please check your input and try again');
-        } else {
-          // Handle other errors
-          setServerError(data.message || 'Registration failed');
-          toast.error(data.message || 'Registration failed');
+          const fieldError = data.field;
+          const errorMessage = data.message || 'This field is already registered';
+          setErrors(prev => ({ ...prev, [fieldError]: errorMessage }));
+          toast.error(errorMessage);
+          return;
         }
-        return;
+        throw new Error(data.message || 'Registration failed');
       }
 
-      // Registration successful
       toast.success('Registration successful! Please check your email to verify your account.');
       router.push('/auth/login/admin');
-
     } catch (error) {
       console.error('Registration error:', error);
-      setServerError('An unexpected error occurred. Please try again.');
-      toast.error('An unexpected error occurred. Please try again.');
+      setErrors(prev => ({ ...prev, serverError: error.message || 'An error occurred during registration' }));
+      toast.error(error.message || 'An error occurred during registration');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const inputClasses = "block w-full pl-11 pr-4 py-3 bg-[#161B22] border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00f2ea] focus:border-transparent";
+  const inputBaseClasses = "block w-full pl-11 pr-4 py-3 bg-black/50 backdrop-blur-xl border border-[#ff0080]/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-[#ff0080] focus:ring-1 focus:ring-[#ff0080] transition-colors";
   const errorClasses = "mt-1 text-sm text-red-500";
+  const iconClasses = "h-5 w-5 text-[#ff0080]";
 
   return (
-    <div className="min-h-screen flex bg-[#0D1117]">
+    <div className="min-h-screen flex bg-black/90 relative">
+      {/* Animated background */}
+      <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+      <div className="absolute inset-0 animated-bg"></div>
+
       {/* Left Side - Form */}
-      <div className="w-full lg:w-[45%] p-4 sm:p-6 md:p-8 lg:p-12 flex flex-col justify-center">
-        <div className="w-full max-w-lg mx-auto">
+      <div className="w-full lg:w-[60%] p-4 sm:p-6 md:p-8 lg:p-12 flex flex-col justify-center relative z-10">
+        <div className="w-full max-w-2xl mx-auto">
           <div className="text-center mb-8">
             <LogoWithText className="h-12 mx-auto mb-6" />
-            <h1 className="text-3xl font-bold text-white mb-3">Admin Registration</h1>
+            <h1 className="text-4xl font-bold mb-3">
+              <span className="cyberpunk-text-gradient">Admin</span>{' '}
+              <span className="text-white">Registration</span>
+            </h1>
             <div className="text-sm text-gray-400">
               Already have an account?{' '}
-              <Link href="/auth/login/admin" className="text-[#00f2ea] hover:text-[#00d8d8]">
+              <Link 
+                href="/auth/login/admin" 
+                className="text-[#ff0080] hover:text-[#ff0080]/80 transition-colors"
+              >
                 Sign In
               </Link>
               {' | '}
-              <Link href="/auth/register/user" className="text-[#00f2ea] hover:text-[#00d8d8]">
+              <Link 
+                href="/auth/register/user" 
+                className="text-[#ff0080] hover:text-[#ff0080]/80 transition-colors"
+              >
                 Student Registration
               </Link>
             </div>
           </div>
 
-          {serverError && (
-            <div className="mb-4 bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded relative" role="alert">
-              <span className="block sm:inline">{serverError}</span>
+          {errors.serverError && (
+            <div className="mb-6 p-4 cyberpunk-card border-red-500/50 text-red-500 text-sm">
+              {errors.serverError}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Name Input */}
-            <div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <FaUser className="h-5 w-5 text-gray-400" />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Personal Information */}
+              <div className="space-y-4">
+                <h2 className="text-xl font-semibold mb-4 cyberpunk-text-gradient">Personal Information</h2>
+                
+                {/* Name Input */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <UserIcon className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      placeholder="Full name"
+                      className={`${inputBaseClasses} ${errors.name ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {errors.name && <p className={errorClasses}>{errors.name}</p>}
                 </div>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="Full name"
-                  className={`${inputClasses} ${errors.name ? 'border-red-500' : ''}`}
-                  disabled={isLoading}
-                />
-              </div>
-              {errors.name && <p className={errorClasses}>{errors.name}</p>}
-            </div>
 
-            {/* Email Input */}
-            <div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <FaEnvelope className="h-5 w-5 text-gray-400" />
+                {/* Email Input */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <EnvelopeIcon className={iconClasses} />
+                    </div>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      placeholder="Email address"
+                      className={`${inputBaseClasses} ${errors.email ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {errors.email && <p className={errorClasses}>{errors.email}</p>}
                 </div>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="Email address"
-                  className={`${inputClasses} ${errors.email ? 'border-red-500' : ''}`}
-                  disabled={isLoading}
-                />
-              </div>
-              {errors.email && <p className={errorClasses}>{errors.email}</p>}
-            </div>
 
-            {/* Password Input */}
-            <div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <FaLock className="h-5 w-5 text-gray-400" />
+                {/* Password Input */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <KeyIcon className={iconClasses} />
+                    </div>
+                    <input
+                      type="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="Password"
+                      className={`${inputBaseClasses} ${errors.password ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {errors.password && <p className={errorClasses}>{errors.password}</p>}
                 </div>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="Password"
-                  className={`${inputClasses} ${errors.password ? 'border-red-500' : ''}`}
-                  disabled={isLoading}
-                />
-              </div>
-              {errors.password && <p className={errorClasses}>{errors.password}</p>}
-            </div>
 
-            {/* Confirm Password Input */}
-            <div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <FaLock className="h-5 w-5 text-gray-400" />
+                {/* Confirm Password Input */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <KeyIcon className={iconClasses} />
+                    </div>
+                    <input
+                      type="password"
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      placeholder="Confirm password"
+                      className={`${inputBaseClasses} ${errors.confirmPassword ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {errors.confirmPassword && <p className={errorClasses}>{errors.confirmPassword}</p>}
                 </div>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  placeholder="Confirm password"
-                  className={`${inputClasses} ${errors.confirmPassword ? 'border-red-500' : ''}`}
-                  disabled={isLoading}
-                />
               </div>
-              {errors.confirmPassword && <p className={errorClasses}>{errors.confirmPassword}</p>}
-            </div>
 
-            {/* Phone Input */}
-            <div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <FaPhone className="h-5 w-5 text-gray-400" />
+              {/* Organization Information */}
+              <div className="space-y-4">
+                <h2 className="text-xl font-semibold mb-4 cyberpunk-text-gradient">Organization Information</h2>
+
+                {/* User ID Input */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <UserIcon className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      name="user_id"
+                      value={formData.user_id}
+                      onChange={handleChange}
+                      placeholder="User ID"
+                      className={`${inputBaseClasses} ${errors.user_id ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {errors.user_id && <p className={errorClasses}>{errors.user_id}</p>}
                 </div>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  placeholder="Phone number"
-                  className={`${inputClasses} ${errors.phone ? 'border-red-500' : ''}`}
-                  disabled={isLoading}
-                />
-              </div>
-              {errors.phone && <p className={errorClasses}>{errors.phone}</p>}
-            </div>
 
-            {/* Department Field */}
-            <div className="space-y-1">
-              <label htmlFor="department" className="block text-sm font-medium text-gray-300">
-                Department
-              </label>
-              <DepartmentSelect
-                value={formData.department}
-                onChange={(value) => handleChange({ target: { name: 'department', value }})}
-                error={errors.department}
-              />
-            </div>
-
-            {/* Organization Name Field */}
-            <div className="space-y-1">
-              <label htmlFor="organizationName" className="block text-sm font-medium text-gray-300">
-                Organization Name
-              </label>
-              <OrganizationSelect
-                value={formData.organizationName}
-                onChange={handleChange}
-                error={errors.organizationName}
-              />
-            </div>
-
-            {/* Registration Code Input */}
-            <div>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <FaLock className="h-5 w-5 text-gray-400" />
+                {/* Organization UID Input */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <BuildingOfficeIcon className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      name="organisation_uid"
+                      value={formData.organisation_uid}
+                      onChange={handleChange}
+                      placeholder="Organization ID"
+                      className={`${inputBaseClasses} ${errors.organisation_uid ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {errors.organisation_uid && <p className={errorClasses}>{errors.organisation_uid}</p>}
                 </div>
-                <input
-                  type="text"
-                  name="registrationCode"
-                  value={formData.registrationCode}
-                  onChange={handleChange}
-                  placeholder="Admin Registration Code"
-                  className={`${inputClasses} ${errors.registrationCode ? 'border-red-500' : ''}`}
-                  disabled={isLoading}
-                />
               </div>
-              {errors.registrationCode && <p className={errorClasses}>{errors.registrationCode}</p>}
             </div>
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={`w-full py-3 px-4 bg-[#00f2ea] hover:bg-[#00d8d8] text-black font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#00f2ea] transition-colors ${
-                isLoading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              {isLoading ? 'Creating Account...' : 'Create Account'}
-            </button>
+            <div className="mt-8">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="cyberpunk-button w-full"
+              >
+                {isLoading ? 'Creating Account...' : 'Create Admin Account'}
+              </button>
+            </div>
           </form>
         </div>
       </div>
 
-      {/* Right Side - Content */}
-      <div className="hidden lg:block lg:w-[55%] bg-[#161B22]">
-        <div className="h-full flex items-center justify-center p-12">
+      {/* Right Side - Image */}
+      <div className="hidden lg:block lg:w-[40%] relative">
+        <div className="absolute inset-0 bg-gradient-to-l from-black/90 to-transparent z-10"></div>
+        <div className="h-full flex items-center justify-center p-12 relative z-20">
           <div className="max-w-xl text-center">
-            <h2 className="text-4xl font-bold text-white mb-6">
-              Manage Your Organization
+            <h2 className="text-5xl font-bold mb-6">
+              <span className="cyberpunk-text-gradient">Manage</span>{' '}
+              <span className="text-white">Your</span>{' '}
+              <span className="cyberpunk-text-gradient">Institution</span>
             </h2>
-            <p className="text-gray-400 text-lg">
-              Join our modern attendance management system. Track your organization's attendance effortlessly with QR-based check-ins.
+            <p className="text-xl text-gray-400 mb-8">
+              Take control of your organization's attendance system with advanced administrative tools.
             </p>
+            <div className="grid grid-cols-2 gap-6">
+              {[
+                { icon: '🎯', label: 'Track Attendance' },
+                { icon: '📊', label: 'Generate Reports' },
+                { icon: '🔐', label: 'Secure Access' },
+                { icon: '⚡', label: 'Real-time Updates' },
+              ].map((item, index) => (
+                <div key={index} className="cyberpunk-card p-4 group hover:scale-105 transition-transform">
+                  <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">{item.icon}</div>
+                  <div className="text-sm text-gray-400 group-hover:text-white transition-colors">{item.label}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

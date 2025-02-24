@@ -13,7 +13,7 @@ const publicRoutes = [
 ];
 
 // Auth middleware
-const auth = (req, res, next) => {
+const auth = async (req, res, next) => {
   try {
     // Check if the route is public
     const isPublicRoute = publicRoutes.some(route => 
@@ -24,101 +24,77 @@ const auth = (req, res, next) => {
       return next();
     }
 
-    // Get token from cookie
-    const token = req.cookies.token;
+    // Get token from different possible sources
+    let token;
+    
+    // Check Authorization header
+    const authHeader = req.header('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+    
+    // Check query parameter
+    if (!token && req.query.token) {
+      token = req.query.token;
+    }
+    
+    // Check cookies
+    if (!token && req.cookies && req.cookies.token) {
+      token = req.cookies.token;
+    }
 
-    // Check if no token
+    // Check if no token found
     if (!token) {
-      console.log('No token found in cookies');
       return res.status(401).json({ 
-        success: false,
-        message: 'No token, authorization denied' 
+        message: 'No authentication token found. Please provide a token via Authorization header (Bearer token), query parameter (token), or cookie (token).'
       });
     }
 
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('Token verified:', { userId: decoded.user.id, role: decoded.user.role });
+    try {
+      // Verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      
+      // Get user from database
+      const user = await User.findById(decoded.id || decoded.userId).select('-password');
+      
+      if (!user) {
+        return res.status(401).json({ message: 'User not found' });
+      }
 
-    // Add user from payload to request
-    req.user = decoded.user;
-    next();
-  } catch (err) {
-    console.error('Token verification failed:', err.message);
-    res.status(401).json({ 
-      success: false,
-      message: 'Token is not valid' 
-    });
+      // Add user to request
+      req.user = user;
+      req.token = token;
+      
+      next();
+    } catch (tokenError) {
+      console.error('Token verification failed:', tokenError.message);
+      if (tokenError.name === 'TokenExpiredError') {
+        return res.status(401).json({ message: 'Token has expired' });
+      } else if (tokenError.name === 'JsonWebTokenError') {
+        return res.status(401).json({ message: 'Invalid token format' });
+      } else {
+        return res.status(401).json({ message: 'Token validation failed' });
+      }
+    }
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    res.status(500).json({ message: 'Server error during authentication' });
   }
 };
 
 // Role-based authorization middleware
 const authorize = (roles = []) => {
-  if (typeof roles === 'string') {
-    roles = [roles];
-  }
-
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not authenticated'
-      });
+      return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    // Get role from cookie as backup
-    const cookieRole = req.cookies.role;
-    const userRole = req.user.role || cookieRole;
-
-    if (roles.length && !roles.includes(userRole)) {
-      return res.status(403).json({
-        success: false,
-        message: 'User not authorized'
-      });
+    if (roles.length && !roles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'User not authorized' });
     }
 
     next();
   };
 };
 
-// Organization authorization middleware
-const authorizeOrganization = async (req, res, next) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not authenticated'
-      });
-    }
-
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    if (!user.organizationId) {
-      return res.status(403).json({
-        success: false,
-        message: 'User not associated with any organization'
-      });
-    }
-
-    req.organizationId = user.organizationId;
-    next();
-  } catch (error) {
-    console.error('Organization authorization error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error during authorization'
-    });
-  }
-};
-
-module.exports = {
-  auth,
-  authorize,
-  authorizeOrganization
-};
+module.exports = { auth, authorize };

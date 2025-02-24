@@ -97,27 +97,34 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#0D1117]">
+    <div className="min-h-screen flex bg-black/90 relative">
+      {/* Animated background */}
+      <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+      <div className="absolute inset-0 animated-bg"></div>
+
       {/* Left Side - Form */}
-      <div className="w-full lg:w-[45%] p-4 sm:p-6 md:p-8 lg:p-12 flex flex-col justify-center">
+      <div className="w-full lg:w-[45%] p-4 sm:p-6 md:p-8 lg:p-12 flex flex-col justify-center relative z-10">
         <div className="w-full max-w-lg mx-auto">
           <div className="text-center mb-8">
             <LogoWithText className="h-12 mx-auto mb-6" />
-            <h1 className="text-3xl font-bold text-white mb-3">
-              {role === 'admin' ? 'Admin Login' : 'Student Login'}
+            <h1 className="text-4xl font-bold mb-3">
+              <span className="cyberpunk-text-gradient">
+                {role === 'admin' ? 'Admin' : 'Student'}
+              </span>{' '}
+              <span className="text-white">Login</span>
             </h1>
             <div className="text-sm text-gray-400">
               Don't have an account?{' '}
               <Link 
                 href={`/auth/register/${role}`} 
-                className="text-[#00f2ea] hover:text-[#00d8d8]"
+                className="text-[#ff0080] hover:text-[#ff0080]/80 transition-colors"
               >
                 Sign Up
               </Link>
               {' | '}
               <Link 
                 href={`/auth/login/${role === 'admin' ? 'user' : 'admin'}`}
-                className="text-[#00f2ea] hover:text-[#00d8d8]"
+                className="text-[#ff0080] hover:text-[#ff0080]/80 transition-colors"
               >
                 {role === 'admin' ? 'Student Login' : 'Admin Login'}
               </Link>
@@ -126,14 +133,14 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
-              <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-500 text-sm">
+              <div className="p-4 cyberpunk-card border-red-500/50 text-red-500 text-sm">
                 {error}
               </div>
             )}
 
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <FaEnvelope className="h-5 w-5 text-gray-400" />
+                <FaEnvelope className="h-5 w-5 text-[#ff0080]" />
               </div>
               <input
                 type="email"
@@ -141,14 +148,14 @@ export default function Login() {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="Email address"
-                className="block w-full pl-11 pr-4 py-3 bg-[#161B22] border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00f2ea] focus:border-transparent"
+                className="block w-full pl-11 pr-4 py-3 bg-black/50 backdrop-blur-xl border border-[#ff0080]/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-[#ff0080] focus:ring-1 focus:ring-[#ff0080] transition-colors"
                 disabled={loading}
               />
             </div>
 
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <FaLock className="h-5 w-5 text-gray-400" />
+                <FaLock className="h-5 w-5 text-[#ff0080]" />
               </div>
               <input
                 type="password"
@@ -156,22 +163,22 @@ export default function Login() {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Password"
-                className="block w-full pl-11 pr-4 py-3 bg-[#161B22] border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#00f2ea] focus:border-transparent"
+                className="block w-full pl-11 pr-4 py-3 bg-black/50 backdrop-blur-xl border border-[#ff0080]/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-[#ff0080] focus:ring-1 focus:ring-[#ff0080] transition-colors"
                 disabled={loading}
               />
             </div>
 
             <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center text-gray-400">
+              <label className="flex items-center text-gray-400 cursor-pointer group">
                 <input
                   type="checkbox"
-                  className="form-checkbox h-4 w-4 text-[#00f2ea] bg-[#161B22] border-gray-700 rounded focus:ring-[#00f2ea]"
+                  className="form-checkbox h-4 w-4 border-[#ff0080]/20 bg-black/50 rounded text-[#ff0080] focus:ring-[#ff0080] transition-colors"
                 />
-                <span className="ml-2">Remember me</span>
+                <span className="ml-2 group-hover:text-white transition-colors">Remember me</span>
               </label>
               <Link
                 href="/auth/forgot-password"
-                className="text-[#00f2ea] hover:text-[#00d8d8]"
+                className="text-[#ff0080] hover:text-[#ff0080]/80 transition-colors"
               >
                 Forgot password?
               </Link>
@@ -180,9 +187,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className={`w-full py-3 px-4 bg-[#00f2ea] hover:bg-[#00d8d8] text-black font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#00f2ea] ${
-                loading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
+              className="cyberpunk-button w-full"
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
@@ -191,19 +196,36 @@ export default function Login() {
       </div>
 
       {/* Right Side - Image */}
-      <div className="hidden lg:block lg:w-[55%] bg-[#161B22]">
-        <div className="h-full flex items-center justify-center p-12">
+      <div className="hidden lg:block lg:w-[55%] relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-black/90 to-transparent z-10"></div>
+        <div className="h-full flex items-center justify-center p-12 relative z-20">
           <div className="max-w-xl text-center">
-            <h2 className="text-4xl font-bold text-white mb-6">
-              {role === 'admin' 
-                ? 'Manage Your Organization' 
-                : 'Track Your Attendance'}
+            <h2 className="text-5xl font-bold mb-6">
+              <span className="cyberpunk-text-gradient">
+                {role === 'admin' ? 'Manage' : 'Track'}
+              </span>{' '}
+              <span className="text-white">Your</span>{' '}
+              <span className="cyberpunk-text-gradient">
+                {role === 'admin' ? 'Organization' : 'Attendance'}
+              </span>
             </h2>
-            <p className="text-gray-400 text-lg">
+            <p className="text-xl text-gray-400 mb-8">
               {role === 'admin'
-                ? 'Access your dashboard to manage attendance, view reports, and oversee your organization.'
-                : 'Stay on top of your attendance records and maintain a great academic record.'}
+                ? 'Take control of your organization\'s attendance with our powerful management tools.'
+                : 'Earn rewards and maintain perfect attendance streaks with our gamified system.'}
             </p>
+            <div className="grid grid-cols-3 gap-6">
+              {[
+                { icon: '🎯', label: 'Track Goals' },
+                { icon: '💰', label: 'Earn Rewards' },
+                { icon: '📊', label: 'View Analytics' },
+              ].map((item, index) => (
+                <div key={index} className="cyberpunk-card p-4 group hover:scale-105 transition-transform">
+                  <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">{item.icon}</div>
+                  <div className="text-sm text-gray-400 group-hover:text-white transition-colors">{item.label}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

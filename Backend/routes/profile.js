@@ -1,85 +1,115 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 const User = require('../models/User');
 const multer = require('multer');
 const path = require('path');
 
-// Configure multer for file uploads
+// Configure multer for file upload
 const storage = multer.diskStorage({
-  destination: './uploads/profile',
-  filename: function(req, file, cb) {
-    cb(null, 'profile-' + Date.now() + path.extname(file.originalname));
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, '../uploads/profile'));
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'profile-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 1000000 }, // 1MB limit
-  fileFilter: function(req, file, cb) {
-    checkFileType(file, cb);
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png/;
+    const mimetype = filetypes.test(file.mimetype);
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Only .png, .jpg and .jpeg format allowed!'));
   }
 });
-
-// Check file type
-function checkFileType(file, cb) {
-  const filetypes = /jpeg|jpg|png|gif/;
-  const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = filetypes.test(file.mimetype);
-
-  if (mimetype && extname) {
-    return cb(null, true);
-  } else {
-    cb('Error: Images Only!');
-  }
-}
 
 // Get user profile
 router.get('/', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
     res.json(user);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    res.status(500).json({ message: 'Error fetching profile' });
   }
 });
 
 // Update user profile
 router.put('/', auth, async (req, res) => {
-  const { name, phone, department } = req.body;
-
   try {
-    let user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ msg: 'User not found' });
+    const { name, email, department, phone } = req.body;
+    
+    // Build update object
+    const profileFields = {};
+    if (name) profileFields.name = name;
+    if (email) profileFields.email = email;
+    if (department) profileFields.department = department;
+    if (phone) profileFields.phone = phone;
 
-    user.name = name || user.name;
-    user.phone = phone || user.phone;
-    user.department = department || user.department;
+    // Update user
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: profileFields },
+      { new: true }
+    ).select('-password');
 
-    await user.save();
     res.json(user);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ message: 'Error updating profile' });
   }
 });
 
 // Upload profile picture
-router.post('/upload', auth, upload.single('profile'), async (req, res) => {
+router.post('/upload-picture', auth, upload.single('profilePicture'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ msg: 'Please upload a file' });
+      return res.status(400).json({ message: 'Please upload a file' });
     }
 
     const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update profile picture path
     user.profilePicture = `/uploads/profile/${req.file.filename}`;
     await user.save();
 
-    res.json({ msg: 'Profile picture uploaded', filePath: user.profilePicture });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    res.json({
+      message: 'Profile picture uploaded successfully',
+      filePath: user.profilePicture
+    });
+  } catch (error) {
+    console.error('Error uploading profile picture:', error);
+    res.status(500).json({ message: 'Error uploading profile picture' });
+  }
+});
+
+// Get user points
+router.get('/points', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('points');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({ points: user.points });
+  } catch (error) {
+    console.error('Error fetching points:', error);
+    res.status(500).json({ message: 'Error fetching points' });
   }
 });
 

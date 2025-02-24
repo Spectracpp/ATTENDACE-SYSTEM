@@ -1,0 +1,223 @@
+/* Cyberpunk Glow Animation */
+@keyframes neonGlow {
+  0% {
+    box-shadow: 0 0 5px #ff0080,
+                0 0 10px #ff0080,
+                0 0 20px #ff0080;
+  }
+  50% {
+    box-shadow: 0 0 10px #ff0080,
+                0 0 20px #ff0080,
+                0 0 40px #ff0080;
+  }
+  100% {
+    box-shadow: 0 0 5px #ff0080,
+                0 0 10px #ff0080,
+                0 0 20px #ff0080;
+  }
+}
+
+/* Glitch Effect */
+@keyframes glitch {
+  0% {
+    transform: translate(0);
+  }
+  20% {
+    transform: translate(-2px, 2px);
+  }
+  40% {
+    transform: translate(-2px, -2px);
+  }
+  60% {
+    transform: translate(2px, 2px);
+  }
+  80% {
+    transform: translate(2px, -2px);
+  }
+  100% {
+    transform: translate(0);
+  }
+}
+
+/* Scanner Line Effect */
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+/* Digital Rain Effect */
+@keyframes digitalRain {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 0% 100%;
+  }
+}
+
+/* Hover Lift Effect */
+@keyframes hover {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+/* Pulse Effect */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Grid Animation */
+@keyframes gridFlow {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 50px 50px;
+  }
+}
+
+/* Utility Classes */
+.animate-neon {
+  animation: neonGlow 2s infinite;
+}
+
+.animate-glitch {
+  animation: glitch 0.5s infinite;
+}
+
+.animate-hover {
+  animation: hover 2s infinite;
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite;
+}
+
+/* Scanline Effect */
+.scanline {
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 0, 128, 0.2);
+  animation: scanline 4s linear infinite;
+}
+
+/* Digital Rain Background */
+.digital-rain {
+  background: linear-gradient(0deg, 
+    rgba(0, 0, 0, 0) 0%,
+    rgba(255, 0, 128, 0.1) 50%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  background-size: 100% 20px;
+  animation: digitalRain 20s linear infinite;
+}
+
+/* Grid Background */
+.grid-bg {
+  background-image: 
+    linear-gradient(to right, rgba(255, 0, 128, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 0, 128, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+  animation: gridFlow 20s linear infinite;
+}
+
+/* Hover Effects */
+.hover-glow:hover {
+  animation: neonGlow 1s infinite;
+}
+
+.hover-glitch:hover {
+  animation: glitch 0.3s infinite;
+}
+
+.hover-lift:hover {
+  animation: hover 1s infinite;
+}
+
+/* Form Input Animations */
+.input-focus-animation {
+  transition: all 0.3s ease;
+}
+
+.input-focus-animation:focus {
+  transform: scale(1.02);
+  box-shadow: 0 0 15px rgba(255, 0, 128, 0.5);
+}
+
+/* Button Animations */
+.button-animation {
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.button-animation:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255, 0, 128, 0.4),
+    transparent
+  );
+  transition: all 0.5s;
+}
+
+.button-animation:hover:before {
+  left: 100%;
+}
+
+/* Loading Animation */
+.loading-animation {
+  position: relative;
+}
+
+.loading-animation:after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  bottom: 0;
+  left: 0;
+  background: #ff0080;
+  animation: loading 2s infinite;
+}
+
+@keyframes loading {
+  0% {
+    width: 0;
+  }
+  50% {
+    width: 100%;
+  }
+  100% {
+    width: 0;
+  }
+}

@@ -13,10 +13,11 @@ export default function RewardsPage() {
     longestStreak: 0,
     rewards: []
   });
-  const [availableRewards, setAvailableRewards] = useState([]);
+  const [categories, setCategories] = useState({});
+  const [activeCategory, setActiveCategory] = useState('all');
 
   useEffect(() => {
-    Promise.all([fetchRewards(), fetchAvailableRewards()])
+    Promise.all([fetchRewards(), fetchCategories()])
       .finally(() => setLoading(false));
   }, []);
 
@@ -38,22 +39,22 @@ export default function RewardsPage() {
     }
   };
 
-  const fetchAvailableRewards = async () => {
+  const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/rewards/available', {
+      const response = await fetch('/api/rewards/categories', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
       if (!response.ok) {
-        throw new Error('Failed to fetch available rewards');
+        throw new Error('Failed to fetch categories');
       }
       const data = await response.json();
-      setAvailableRewards(Array.isArray(data) ? data : []);
+      setCategories(data);
     } catch (error) {
-      console.error('Error fetching available rewards:', error);
-      toast.error('Failed to load available rewards');
-      setAvailableRewards([]);
+      console.error('Error fetching categories:', error);
+      toast.error('Failed to load reward categories');
+      setCategories({});
     }
   };
 
@@ -74,8 +75,7 @@ export default function RewardsPage() {
       }
 
       toast.success('Reward claimed successfully');
-      // Refresh both rewards and available rewards
-      await Promise.all([fetchRewards(), fetchAvailableRewards()]);
+      await Promise.all([fetchRewards(), fetchCategories()]);
     } catch (error) {
       console.error('Error claiming reward:', error);
       toast.error(error.message);
@@ -89,6 +89,16 @@ export default function RewardsPage() {
       </div>
     );
   }
+
+  const categoryNames = {
+    timeOff: 'Time Off',
+    workPerks: 'Work Perks',
+    wellness: 'Wellness',
+    learning: 'Learning',
+    teamBonding: 'Team Bonding',
+    techGear: 'Tech Gear',
+    recognition: 'Recognition'
+  };
 
   return (
     <div className="space-y-6">
@@ -149,40 +159,74 @@ export default function RewardsPage() {
         </div>
       </div>
 
+      {/* Category Navigation */}
+      <div className="cyberpunk-card p-4">
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-[#ff0080] scrollbar-track-black">
+          <button
+            onClick={() => setActiveCategory('all')}
+            className={`px-4 py-2 rounded-lg whitespace-nowrap transition-all ${
+              activeCategory === 'all'
+                ? 'bg-[#ff0080] text-white'
+                : 'bg-black/50 text-gray-400 hover:text-white'
+            }`}
+          >
+            All Rewards
+          </button>
+          {Object.keys(categories).map((category) => (
+            <button
+              key={category}
+              onClick={() => setActiveCategory(category)}
+              className={`px-4 py-2 rounded-lg whitespace-nowrap transition-all ${
+                activeCategory === category
+                  ? 'bg-[#ff0080] text-white'
+                  : 'bg-black/50 text-gray-400 hover:text-white'
+              }`}
+            >
+              {categoryNames[category]}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Available Rewards */}
       <div className="cyberpunk-card p-6">
         <h2 className="text-xl font-bold cyberpunk-text-gradient mb-6">
-          Available Rewards
+          {activeCategory === 'all' ? 'All Rewards' : categoryNames[activeCategory]}
         </h2>
-        {availableRewards.length > 0 ? (
+        {Object.entries(categories).length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {availableRewards.map((reward) => (
-              <div key={reward.id} className="cyberpunk-card-gradient p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <FaGift className="text-[#ff0080] text-2xl" />
-                    <div>
-                      <h3 className="text-lg font-medium text-white">{reward.name}</h3>
-                      <p className="text-sm text-gray-400">{reward.description}</p>
+            {Object.entries(categories)
+              .filter(([category]) => activeCategory === 'all' || category === activeCategory)
+              .map(([category, categoryRewards]) =>
+                categoryRewards.map((reward) => (
+                  <div key={reward.id} className="cyberpunk-card-gradient p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{reward.icon}</span>
+                        <div>
+                          <h3 className="text-lg font-medium text-white">{reward.name}</h3>
+                          <p className="text-sm text-gray-400">{reward.description}</p>
+                          <span className="text-xs text-[#ff0080]">{reward.category}</span>
+                        </div>
+                      </div>
+                      <span className="text-[#7928ca] font-bold">{reward.points} pts</span>
                     </div>
+                    <button
+                      onClick={() => handleClaimReward(reward.id)}
+                      disabled={rewards?.points < reward.points}
+                      className={`w-full cyberpunk-button ${
+                        rewards?.points < reward.points
+                          ? 'opacity-50 cursor-not-allowed'
+                          : ''
+                      }`}
+                    >
+                      {rewards?.points < reward.points
+                        ? `Need ${reward.points - rewards.points} more points`
+                        : 'Claim Reward'}
+                    </button>
                   </div>
-                  <span className="text-[#7928ca] font-bold">{reward.points} pts</span>
-                </div>
-                <button
-                  onClick={() => handleClaimReward(reward.id)}
-                  disabled={rewards?.points < reward.points}
-                  className={`w-full cyberpunk-button ${
-                    rewards?.points < reward.points
-                      ? 'opacity-50 cursor-not-allowed'
-                      : ''
-                  }`}
-                >
-                  {rewards?.points < reward.points
-                    ? `Need ${reward.points - rewards.points} more points`
-                    : 'Claim Reward'}
-                </button>
-              </div>
-            ))}
+                ))
+              )}
           </div>
         ) : (
           <div className="text-center py-8 text-gray-400">

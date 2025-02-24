@@ -49,12 +49,14 @@ export default function Header({ toggleSidebar }) {
       <div className="flex items-center justify-between px-4 py-3">
         {/* Left side */}
         <div className="flex items-center gap-4">
-          <button
-            onClick={toggleSidebar}
-            className="cyberpunk-button !p-3"
-          >
-            <FaBars size={20} />
-          </button>
+          {user && (
+            <button
+              onClick={toggleSidebar}
+              className="cyberpunk-button !p-3 hover:scale-105 transition-transform"
+            >
+              <FaBars size={20} />
+            </button>
+          )}
           <Link href="/" className="flex items-center">
             <LogoWithText className="h-8 w-auto" />
           </Link>
@@ -62,17 +64,19 @@ export default function Header({ toggleSidebar }) {
 
         {/* Right side */}
         <div className="flex items-center gap-4">
-          <button className="relative cyberpunk-button !p-3">
-            <FaBell size={20} />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#ff0080] rounded-full text-xs flex items-center justify-center">
-              2
-            </span>
-          </button>
+          {user && (
+            <button className="relative cyberpunk-button !p-3 hover:scale-105 transition-transform">
+              <FaBell size={20} />
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#ff0080] rounded-full text-xs flex items-center justify-center">
+                2
+              </span>
+            </button>
+          )}
           {user ? (
             <div className="relative">
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="flex items-center space-x-2 text-gray-300 hover:text-white"
+                className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors"
               >
                 <UserCircleIcon className="h-8 w-8" />
                 <ChevronDownIcon className="h-4 w-4" />
@@ -83,49 +87,47 @@ export default function Header({ toggleSidebar }) {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5"
+                  className="absolute right-0 mt-2 w-48 rounded-lg overflow-hidden bg-black/90 backdrop-blur-xl border border-[#ff0080]/20"
                 >
                   <div className="py-1">
                     {menuItems.map((item) => (
                       <Link
                         key={item.href}
                         href={item.href}
-                        className={`flex items-center px-4 py-2 text-sm ${
+                        className={`flex items-center px-4 py-2 text-sm transition-colors ${
                           isActive(item.href)
-                            ? 'bg-gray-100 text-gray-900'
-                            : 'text-gray-700 hover:bg-gray-100'
+                            ? 'bg-[#ff0080]/20 text-[#ff0080]'
+                            : 'text-gray-300 hover:bg-[#ff0080]/10 hover:text-white'
                         }`}
                       >
                         <item.icon className="h-5 w-5 mr-2" />
                         {item.label}
                       </Link>
                     ))}
-                    {logout && (
-                      <button
-                        onClick={logout}
-                        className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
-                        Logout
-                      </button>
-                    )}
+                    <button
+                      onClick={logout}
+                      className="w-full flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-[#ff0080]/10 hover:text-white transition-colors"
+                    >
+                      <ArrowRightOnRectangleIcon className="h-5 w-5 mr-2" />
+                      Sign Out
+                    </button>
                   </div>
                 </motion.div>
               )}
             </div>
           ) : (
-            <div className="hidden sm:block">
+            <div className="flex items-center gap-4">
               <Link
                 href="/auth/login/user"
-                className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                className="cyberpunk-button !py-2"
               >
-                Login
+                Sign In
               </Link>
               <Link
                 href="/auth/register/user"
-                className="bg-[#00f2ea] text-black hover:bg-[#00d8d2] px-4 py-2 rounded-md text-sm font-medium"
+                className="cyberpunk-button !py-2"
               >
-                Sign Up
+                Register
               </Link>
             </div>
           )}
