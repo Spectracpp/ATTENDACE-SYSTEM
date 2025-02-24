@@ -3,7 +3,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FaHome, FaQrcode, FaHistory, FaSignOutAlt } from 'react-icons/fa';
+import { FaHome, FaQrcode, FaHistory, FaUser, FaTrophy, FaSignOutAlt } from 'react-icons/fa';
 
 export default function Sidebar({ open, setOpen }) {
   const { user, logout } = useAuth();
@@ -13,6 +13,8 @@ export default function Sidebar({ open, setOpen }) {
     { name: 'Dashboard', href: '/dashboard', icon: FaHome },
     { name: 'Scan QR', href: '/scan', icon: FaQrcode },
     { name: 'History', href: '/history', icon: FaHistory },
+    { name: 'Profile', href: '/profile', icon: FaUser },
+    { name: 'Rewards', href: '/rewards', icon: FaTrophy },
   ];
 
   const isActive = (path) => pathname === path;
