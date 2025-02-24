@@ -16,8 +16,12 @@ export default function Logo({ className = '', width = 40, height = 40, animated
       <defs>
         <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#ff0080" />
-          <stop offset="50%" stopColor="#7928ca" />
-          <stop offset="100%" stopColor="#00f2ea" />
+          <stop offset="60%" stopColor="#7928ca" />
+          <stop offset="100%" stopColor="#4a1b9a" />
+        </linearGradient>
+        <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#ff0080" />
+          <stop offset="100%" stopColor="#7928ca" />
         </linearGradient>
       </defs>
       
@@ -31,13 +35,13 @@ export default function Logo({ className = '', width = 40, height = 40, animated
         />
       </circle>
       
-      {/* Clock Lines with Gradient */}
-      <line x1="50" y1="10" x2="50" y2="20" stroke="url(#logoGradient)" strokeWidth="2" />
-      <line x1="90" y1="50" x2="80" y2="50" stroke="url(#logoGradient)" strokeWidth="2" />
-      <line x1="50" y1="90" x2="50" y2="80" stroke="url(#logoGradient)" strokeWidth="2" />
-      <line x1="10" y1="50" x2="20" y2="50" stroke="url(#logoGradient)" strokeWidth="2" />
+      {/* Clock Lines with Accent Gradient */}
+      <line x1="50" y1="10" x2="50" y2="20" stroke="url(#accentGradient)" strokeWidth="2" />
+      <line x1="90" y1="50" x2="80" y2="50" stroke="url(#accentGradient)" strokeWidth="2" />
+      <line x1="50" y1="90" x2="50" y2="80" stroke="url(#accentGradient)" strokeWidth="2" />
+      <line x1="10" y1="50" x2="20" y2="50" stroke="url(#accentGradient)" strokeWidth="2" />
       
-      {/* Check Mark with Gradient */}
+      {/* Check Mark with Main Gradient */}
       <motion.path
         initial={animated ? { pathLength: 0 } : { pathLength: 1 }}
         animate={{ pathLength: 1 }}
@@ -78,7 +82,7 @@ export function LogoWithText({ className = '', width = 150, height = 40, animate
         transition={{ duration: 0.5, delay: 0.2 }}
         className="text-2xl font-bold tracking-tight"
       >
-        <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#ff0080] via-[#7928ca] to-[#00f2ea]">
+        <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#ff0080] via-[#7928ca] to-[#4a1b9a]">
           Attendance
         </span>
         <span className="ml-1 text-white">System</span>

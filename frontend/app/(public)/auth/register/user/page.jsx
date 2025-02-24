@@ -193,7 +193,7 @@ export default function UserRegister() {
               <LogoWithText className="h-12 mx-auto" />
             </div>
             <h1 className="text-4xl font-bold mb-3 hover-glitch">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#ff0080] via-[#7928ca] to-[#00f2ea] animate-neon">
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#ff0080] via-[#7928ca] to-[#4a1b9a] animate-neon">
                 Student
               </span>{' '}
               <span className="text-white">Registration</span>
@@ -202,14 +202,14 @@ export default function UserRegister() {
               Already have an account?{' '}
               <Link 
                 href="/auth/login/user" 
-                className="text-transparent bg-clip-text bg-gradient-to-r from-[#ff0080] to-[#7928ca] hover:from-[#7928ca] hover:to-[#00f2ea] transition-all duration-300"
+                className="text-transparent bg-clip-text bg-gradient-to-r from-[#ff0080] to-[#7928ca] hover:from-[#7928ca] hover:to-[#4a1b9a] transition-all duration-300"
               >
                 Sign In
               </Link>
               {' | '}
               <Link 
                 href="/auth/register/admin" 
-                className="text-transparent bg-clip-text bg-gradient-to-r from-[#7928ca] to-[#00f2ea] hover:from-[#ff0080] hover:to-[#7928ca] transition-all duration-300"
+                className="text-transparent bg-clip-text bg-gradient-to-r from-[#7928ca] to-[#4a1b9a] hover:from-[#ff0080] hover:to-[#7928ca] transition-all duration-300"
               >
                 Admin Registration
               </Link>
@@ -225,8 +225,8 @@ export default function UserRegister() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Personal Information */}
-              <div className="space-y-4 cyberpunk-card p-6 hover-lift">
-                <h2 className="text-xl font-semibold mb-4 cyberpunk-text-gradient animate-neon">
+              <div className="space-y-4 cyberpunk-card p-6 hover-lift bg-gradient-to-br from-black via-black to-[#4a1b9a]/10">
+                <h2 className="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-[#ff0080] to-[#7928ca] animate-neon">
                   Personal Information
                 </h2>
                 
@@ -327,8 +327,8 @@ export default function UserRegister() {
               </div>
 
               {/* Academic Information */}
-              <div className="space-y-4 cyberpunk-card p-6 hover-lift">
-                <h2 className="text-xl font-semibold mb-4 cyberpunk-text-gradient animate-neon">
+              <div className="space-y-4 cyberpunk-card p-6 hover-lift bg-gradient-to-br from-black via-black to-[#4a1b9a]/10">
+                <h2 className="text-xl font-semibold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-[#7928ca] to-[#4a1b9a] animate-neon">
                   Academic Information
                 </h2>
                 
@@ -387,7 +387,7 @@ export default function UserRegister() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="cyberpunk-button w-full button-animation"
+                className="cyberpunk-button w-full button-animation bg-gradient-to-r from-[#ff0080] via-[#7928ca] to-[#4a1b9a]"
               >
                 {isLoading ? (
                   <span className="loading-animation">Creating Account...</span>
@@ -406,9 +406,13 @@ export default function UserRegister() {
         <div className="h-full flex items-center justify-center p-12 relative z-20">
           <div className="max-w-xl text-center">
             <h2 className="text-5xl font-bold mb-6 hover-glitch">
-              <span className="cyberpunk-text-gradient animate-neon">Join</span>{' '}
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#ff0080] via-[#7928ca] to-[#4a1b9a] animate-neon">
+                Join
+              </span>{' '}
               <span className="text-white">The</span>{' '}
-              <span className="cyberpunk-text-gradient animate-neon">Future</span>
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#7928ca] to-[#4a1b9a] animate-neon">
+                Future
+              </span>
             </h2>
             <p className="text-xl text-gray-400 mb-8">
               Experience the next generation of attendance tracking with our gamified system.
@@ -422,7 +426,7 @@ export default function UserRegister() {
               ].map((item, index) => (
                 <div 
                   key={index} 
-                  className="cyberpunk-card p-4 hover-lift group transition-transform"
+                  className="cyberpunk-card p-4 hover-lift group transition-transform bg-gradient-to-br from-black via-black to-[#4a1b9a]/10"
                 >
                   <div className="text-3xl mb-2 group-hover:animate-pulse">{item.icon}</div>
                   <div className="text-sm text-gray-400 group-hover:text-white transition-colors">
