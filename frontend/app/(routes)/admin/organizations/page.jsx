@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { FaBuilding, FaUsers, FaQrcode, FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
 import { motion } from 'framer-motion';
+import { getOrganizations } from '@/lib/api/organization';
+import toast from 'react-hot-toast';
 
 export default function OrganizationsPage() {
   const [organizations, setOrganizations] = useState([]);
@@ -12,11 +14,15 @@ export default function OrganizationsPage() {
   useEffect(() => {
     const fetchOrganizations = async () => {
       try {
-        const response = await fetch('/api/organizations');
-        const data = await response.json();
-        setOrganizations(data.organizations || []);
+        const response = await getOrganizations();
+        if (response.success) {
+          setOrganizations(response.organizations || []);
+        } else {
+          toast.error(response.message || 'Failed to fetch organizations');
+        }
       } catch (error) {
         console.error('Error fetching organizations:', error);
+        toast.error('Failed to fetch organizations');
       } finally {
         setIsLoading(false);
       }
@@ -51,7 +57,7 @@ export default function OrganizationsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {organizations.map((org, index) => (
           <motion.div
-            key={org.id}
+            key={org._id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
@@ -60,7 +66,7 @@ export default function OrganizationsPage() {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <h3 className="text-xl font-semibold text-white">{org.name}</h3>
-                <p className="text-gray-400 text-sm mt-1">{org.description}</p>
+                <p className="text-gray-400 text-sm mt-1">{org.code}</p>
               </div>
               <div className="flex gap-2">
                 <button className="p-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors">
@@ -105,18 +111,7 @@ export default function OrganizationsPage() {
         ))}
       </div>
 
-      {/* Add Organization Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-gray-900 p-6 rounded-xl w-full max-w-md">
-            <h2 className="text-2xl font-bold text-white mb-4">Add Organization</h2>
-            {/* Add organization form */}
-            <form className="space-y-4">
-              {/* Form fields */}
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Add Organization Modal will be added here */}
     </div>
   );
 }

@@ -2,13 +2,17 @@ import { API_URL } from '@/config';
 
 export async function generateQRCode(data) {
   try {
-    const response = await fetch(`${API_URL}/qr-codes/generate`, {
+    const response = await fetch(`${API_URL}/qr/generate/${data.organizationId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        type: 'daily',
+        validityHours: 24,
+        ...data
+      }),
       credentials: 'include',
       mode: 'cors',
     });
@@ -26,7 +30,7 @@ export async function generateQRCode(data) {
 
 export async function getQRCodes() {
   try {
-    const response = await fetch(`${API_URL}/qr-codes`, {
+    const response = await fetch(`${API_URL}/qr`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -49,7 +53,7 @@ export async function getQRCodes() {
 
 export async function deleteQRCode(id) {
   try {
-    const response = await fetch(`${API_URL}/qr-codes/${id}`, {
+    const response = await fetch(`${API_URL}/qr/${id}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -72,7 +76,7 @@ export async function deleteQRCode(id) {
 
 export async function getQRCodeHistory(id) {
   try {
-    const response = await fetch(`${API_URL}/qr-codes/${id}/history`, {
+    const response = await fetch(`${API_URL}/qr/${id}/history`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
