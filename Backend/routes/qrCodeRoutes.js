@@ -9,89 +9,136 @@ const { rateLimiter } = require('../middleware/rateLimiter');
 const { calculateDistance } = require('../utils/location');
 const qrcode = require('qrcode');
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 
-/**
- * @route POST /api/qr/generate/:organizationId
- * @desc Generate a new QR code for an organization
- * @access Private (Organization Admin/Owner)
- */
-router.post('/generate/:organizationId',
-  auth,
-  qrCodeValidation.generate,
-  async (req, res) => {
-    try {
-      const { organizationId } = req.params;
-      const { type = 'daily', validityHours = 24, location, settings = {} } = req.body;
+// Get all QR codes for user's organizations
+router.get('/', auth, async (req, res) => {
+  try {
+    // Get organizations where user is a member
+    const organizations = await Organization.find({ 
+      'members.user': req.user._id 
+    }).select('_id');
 
-      // Get organization
-      const organization = await Organization.findById(organizationId);
-      if (!organization) {
-        return res.status(404).json({
-          success: false,
-          message: 'Organization not found'
-        });
-      }
+    const qrCodes = await QRCode.find({
+      organization: { $in: organizations.map(org => org._id) }
+    })
+    .populate('organization', 'name')
+    .populate('createdBy', 'name')
+    .sort({ createdAt: -1 })
+    .lean();
 
-      // Check if user has permission
-      if (!organization.hasRole(req.user._id, 'admin')) {
-        return res.status(403).json({
-          success: false,
-          message: 'Insufficient permissions'
-        });
-      }
+    res.json({
+      success: true,
+      qrCodes: qrCodes.map(qr => ({
+        ...qr,
+        organization: qr.organization?.name || 'Unknown',
+        createdBy: qr.createdBy?.name || 'Unknown'
+      }))
+    });
+  } catch (error) {
+    console.error('List QR codes error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching QR codes'
+    });
+  }
+});
 
-      // Generate random data for QR code
-      const randomData = crypto.randomBytes(32).toString('hex');
+// Generate QR code
+router.post('/generate/:organizationId', auth, async (req, res) => {
+  try {
+    const { organizationId } = req.params;
+    const { type = 'daily', validityHours = 24, location, settings = {} } = req.body;
 
-      // Calculate validity period
-      const validFrom = new Date();
-      const validUntil = new Date(validFrom.getTime() + validityHours * 60 * 60 * 1000);
-
-      // Create QR code
-      const qrCode = new QRCode({
-        organization: organizationId,
-        createdBy: req.user._id,
-        data: randomData,
-        type,
-        validFrom,
-        validUntil,
-        location: location ? {
-          type: 'Point',
-          coordinates: [location.longitude, location.latitude]
-        } : undefined,
-        settings: {
-          maxScans: settings.maxScans || organization.settings?.maxQrScans || 1,
-          allowMultipleScans: settings.allowMultipleScans || organization.settings?.allowMultipleScans || false,
-          locationRadius: settings.locationRadius || organization.settings?.locationRadius || 100
-        }
-      });
-
-      await qrCode.save();
-
-      // Generate QR code image
-      const qrData = JSON.stringify({
-        id: qrCode._id,
-        data: randomData,
-        org: organizationId
-      });
-
-      const qrImage = await qrcode.toDataURL(qrData);
-
-      res.json({
-        success: true,
-        message: 'QR code generated successfully',
-        qrCode: {
-          ...qrCode.toJSON(),
-          qrImage
-        }
-      });
-    } catch (error) {
-      console.error('Generate QR code error:', error);
-      res.status(500).json({
+    // Validate organizationId
+    if (!mongoose.Types.ObjectId.isValid(organizationId)) {
+      return res.status(400).json({
         success: false,
-        message: 'Error generating QR code'
+        message: 'Invalid organization ID format'
       });
     }
+
+    // Get organization
+    const organization = await Organization.findById(organizationId);
+    if (!organization) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organization not found'
+      });
+    }
+
+    // Check if user is admin in the organization
+    const member = organization.members.find(m => 
+      m.user.toString() === req.user._id.toString()
+    );
+
+    if (!member) {
+      return res.status(403).json({
+        success: false,
+        message: 'You must be a member of the organization to generate QR codes'
+      });
+    }
+
+    if (member.role !== 'admin' && member.role !== 'owner') {
+      return res.status(403).json({
+        success: false,
+        message: 'You must be an admin or owner to generate QR codes'
+      });
+    }
+
+    // Generate random data for QR code
+    const randomData = crypto.randomBytes(32).toString('hex');
+
+    // Calculate validity period
+    const validFrom = new Date();
+    const validUntil = new Date(validFrom.getTime() + validityHours * 60 * 60 * 1000);
+
+    // Create QR code
+    const qrCode = new QRCode({
+      organization: organizationId,
+      createdBy: req.user._id,
+      data: randomData,
+      type,
+      validFrom,
+      validUntil,
+      location: location ? {
+        type: 'Point',
+        coordinates: [location.longitude, location.latitude]
+      } : undefined,
+      settings: {
+        maxScans: settings.maxScans || organization.settings?.maxQrScans || 1,
+        allowMultipleScans: settings.allowMultipleScans || organization.settings?.allowMultipleScans || false,
+        locationRadius: settings.locationRadius || organization.settings?.locationRadius || 100
+      }
+    });
+
+    await qrCode.save();
+
+    // Generate QR code image
+    const qrData = JSON.stringify({
+      id: qrCode._id,
+      data: randomData,
+      org: organizationId
+    });
+
+    const qrImage = await qrcode.toDataURL(qrData);
+
+    res.json({
+      success: true,
+      message: 'QR code generated successfully',
+      qrCode: {
+        ...qrCode.toObject(),
+        qrImage,
+        organization: organization.name
+      }
+    });
+  } catch (error) {
+    console.error('Generate QR code error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error generating QR code'
+    });
+  }
 });
 
 /**
@@ -106,6 +153,23 @@ router.post('/scan/:organizationId',
     try {
       const { organizationId } = req.params;
       const { qrData, location } = req.body;
+
+      // Validate organizationId
+      if (!mongoose.Types.ObjectId.isValid(organizationId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid organization ID'
+        });
+      }
+
+      // Get organization
+      const organization = await Organization.findById(organizationId);
+      if (!organization) {
+        return res.status(404).json({
+          success: false,
+          message: 'Organization not found'
+        });
+      }
 
       // Find and validate QR code
       const qrCode = await QRCode.findOne({
@@ -196,7 +260,15 @@ router.get('/organization/:organizationId',
       const { organizationId } = req.params;
       const { type, status, limit = 10, page = 1 } = req.query;
 
-      // Validate organization access
+      // Validate organizationId
+      if (!mongoose.Types.ObjectId.isValid(organizationId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid organization ID'
+        });
+      }
+
+      // Get organization
       const organization = await Organization.findById(organizationId);
       if (!organization) {
         return res.status(404).json({
@@ -205,10 +277,15 @@ router.get('/organization/:organizationId',
         });
       }
 
-      if (!organization.hasRole(req.user._id, 'admin')) {
+      // Check if user is admin in the organization
+      const member = organization.members.find(m => 
+        m.user.toString() === req.user._id.toString()
+      );
+
+      if (!member || member.role !== 'admin') {
         return res.status(403).json({
           success: false,
-          message: 'Insufficient permissions'
+          message: 'You must be an admin to view QR codes'
         });
       }
 
@@ -274,10 +351,14 @@ router.post('/:id/deactivate',
       }
 
       // Check if user has permission
-      if (!organization.hasRole(req.user._id, 'admin')) {
+      const member = organization.members.find(m => 
+        m.user.toString() === req.user._id.toString()
+      );
+
+      if (!member || member.role !== 'admin') {
         return res.status(403).json({
           success: false,
-          message: 'Insufficient permissions'
+          message: 'You must be an admin to deactivate QR codes'
         });
       }
 

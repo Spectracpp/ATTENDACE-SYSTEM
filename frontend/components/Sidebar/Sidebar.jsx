@@ -20,11 +20,6 @@ export default function Sidebar() {
       href: '/', 
       icon: FaHome 
     },
-    { 
-      name: 'Profile', 
-      href: '/profile', 
-      icon: FaUser 
-    },
     { name: 'Scan QR', href: '/scan', icon: FaQrcode },
     { name: 'History', href: '/history', icon: FaHistory },
     { name: 'Rewards', href: '/rewards', icon: FaTrophy },
@@ -49,11 +44,11 @@ export default function Sidebar() {
       icon: FaUsers,
       description: 'Manage user accounts and permissions'
     },
-    { 
-      name: 'Attendance', 
-      href: '/admin/attendance', 
-      icon: FaCalendarAlt,
-      description: 'View and manage attendance records'
+    {
+      name: 'Settings',
+      href: '/admin/settings',
+      icon: FaCog,
+      description: 'Manage your profile and system settings'
     },
     { 
       name: 'QR Codes', 
@@ -62,20 +57,30 @@ export default function Sidebar() {
       description: 'Generate and manage QR codes'
     },
     { 
-      name: 'Analytics', 
-      href: '/admin/analytics', 
-      icon: FaChartBar,
-      description: 'View attendance and user statistics'
+      name: 'Attendance', 
+      href: '/admin/attendance', 
+      icon: FaCalendarAlt,
+      description: 'View and manage attendance records'
     },
     { 
-      name: 'Settings', 
-      href: '/admin/settings', 
-      icon: FaCog,
-      description: 'Configure system settings'
+      name: 'Reports', 
+      href: '/admin/reports', 
+      icon: FaChartBar,
+      description: 'View attendance reports and analytics'
+    },
+  ];
+
+  // Common navigation items (shown to both admin and user)
+  const commonNavigation = [
+    { 
+      name: 'Profile', 
+      href: user?.role === 'admin' ? '/admin/settings' : '/profile', 
+      icon: FaUser,
+      description: 'View and edit your profile'
     }
   ];
 
-  const navigation = isAdmin ? adminNavigation : userNavigation;
+  const navigation = isAdmin ? [...adminNavigation, ...commonNavigation] : [...userNavigation, ...commonNavigation];
 
   return (
     <div 

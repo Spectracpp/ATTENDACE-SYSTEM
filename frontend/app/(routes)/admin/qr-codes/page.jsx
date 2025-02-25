@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import GenerateQRModal from '@/components/QRCode/GenerateQRModal';
 import QRCodeHistoryModal from '@/components/QRCode/QRCodeHistoryModal';
-import { getQRCodes, deleteQRCode } from '@/lib/api/qrcode';
+import { getQRCodes, deactivateQRCode } from '@/lib/api/qrcode';
 
 export default function QRCodesPage() {
   const [qrCodes, setQRCodes] = useState([]);
@@ -36,17 +36,17 @@ export default function QRCodesPage() {
   }, []);
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this QR code?')) {
+    if (window.confirm('Are you sure you want to deactivate this QR code?')) {
       try {
-        const response = await deleteQRCode(id);
+        const response = await deactivateQRCode(id);
         if (response.success) {
-          toast.success('QR code deleted successfully');
+          toast.success('QR code deactivated successfully');
           fetchQRCodes(); // Refresh the list
         } else {
-          toast.error(response.message || 'Failed to delete QR code');
+          toast.error(response.message || 'Failed to deactivate QR code');
         }
       } catch (error) {
-        toast.error('An error occurred while deleting QR code');
+        toast.error('An error occurred while deactivating QR code');
         console.error('Error:', error);
       }
     }

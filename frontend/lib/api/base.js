@@ -12,20 +12,14 @@ const getStoredAuth = () => {
 };
 
 export async function apiRequest(endpoint, options = {}) {
-  const TIMEOUT_MS = 15000;
-
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    // Get auth token
+    const isFormData = options.isFormData || false;
     const auth = getStoredAuth();
     const token = auth?.token;
 
-    // Prepare headers
     const headers = {
       'Accept': 'application/json',
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...options.headers
     };
 
@@ -34,37 +28,37 @@ export async function apiRequest(endpoint, options = {}) {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    // Prepare request options
-    const requestOptions = {
+    const config = {
       method: options.method || 'GET',
       headers,
       credentials: 'include',
-      signal: controller.signal,
+      mode: 'cors',
       ...options
     };
 
-    // Add body for non-GET requests
-    if (requestOptions.method !== 'GET' && options.body) {
-      requestOptions.body = JSON.stringify(options.body);
+    // Handle request body
+    if (options.body) {
+      config.body = isFormData ? options.body : JSON.stringify(options.body);
     }
 
-    console.log(`Making ${requestOptions.method} request to ${endpoint}`, {
-      headers: requestOptions.headers,
+    // Remove custom options
+    delete config.isFormData;
+
+    console.log(`Making ${config.method} request to ${endpoint}`, {
+      headers: config.headers,
       body: options.body
     });
 
-    const response = await fetch(`${API_URL}${endpoint}`, requestOptions);
-    clearTimeout(timeoutId);
-
-    const data = await response.json();
+    const response = await fetch(`${API_URL}${endpoint}`, config);
+    const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(data.message || 'API request failed');
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
     }
 
     return data;
   } catch (error) {
-    console.error(`API request failed for ${endpoint}:`, error);
+    console.error(`API Request Error (${endpoint}):`, error);
     throw error;
   }
 }

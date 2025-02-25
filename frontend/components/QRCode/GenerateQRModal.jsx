@@ -45,7 +45,8 @@ export default function GenerateQRModal({ onClose, onSuccess }) {
     setLoading(true);
 
     try {
-      const response = await generateQRCode(formData);
+      const { organizationId, ...data } = formData;
+      const response = await generateQRCode(organizationId, data);
       if (response.success) {
         toast.success('QR Code generated successfully!');
         onSuccess(response.qrCode);
@@ -113,11 +114,10 @@ export default function GenerateQRModal({ onClose, onSuccess }) {
               onChange={handleChange}
               className="w-full bg-black/40 border border-gray-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-[#ff0080]"
               required
-              disabled={loadingOrgs}
             >
               <option value="">Select Organization</option>
-              {organizations.map((org) => (
-                <option key={org.id} value={org.id}>
+              {organizations.map(org => (
+                <option key={org._id} value={org._id}>
                   {org.name}
                 </option>
               ))}

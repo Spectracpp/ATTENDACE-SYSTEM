@@ -1,10 +1,24 @@
 'use client';
 
-import { useState } from 'react';
-import { FaCog, FaBell, FaLock, FaGlobe, FaClock, FaQrcode } from 'react-icons/fa';
+import { useState, useEffect } from 'react';
+import { FaCog, FaBell, FaLock, FaGlobe, FaClock, FaQrcode, FaUser } from 'react-icons/fa';
 import { motion } from 'framer-motion';
+import { toast } from 'react-hot-toast';
+import { updateProfile, getCurrentUser } from '@/lib/api/user';
 
 export default function SettingsPage() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [profileData, setProfileData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+    avatar: null
+  });
+
   const [settings, setSettings] = useState({
     notifications: {
       email: true,
@@ -34,6 +48,32 @@ export default function SettingsPage() {
     }
   });
 
+  useEffect(() => {
+    fetchUserData();
+  }, []);
+
+  const fetchUserData = async () => {
+    try {
+      const response = await getCurrentUser();
+      if (response.success) {
+        setProfileData(prev => ({
+          ...prev,
+          ...response.user,
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        }));
+      } else {
+        toast.error(response.message || 'Failed to fetch user data');
+      }
+    } catch (error) {
+      toast.error('Error fetching user data');
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSettingChange = (category, setting, value) => {
     setSettings(prev => ({
       ...prev,
@@ -44,256 +84,387 @@ export default function SettingsPage() {
     }));
   };
 
+  const handleProfileChange = (e) => {
+    const { name, value, type, files } = e.target;
+    setProfileData(prev => ({
+      ...prev,
+      [name]: type === 'file' ? files[0] : value
+    }));
+  };
+
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      if (profileData.newPassword || profileData.currentPassword) {
+        if (!profileData.currentPassword) {
+          toast.error('Current password is required to change password');
+          return;
+        }
+        if (profileData.newPassword !== profileData.confirmPassword) {
+          toast.error('New passwords do not match');
+          return;
+        }
+        if (profileData.newPassword.length < 6) {
+          toast.error('New password must be at least 6 characters long');
+          return;
+        }
+      }
+
+      const data = new FormData();
+      Object.keys(profileData).forEach(key => {
+        if (key !== 'confirmPassword' && profileData[key] !== null && profileData[key] !== '') {
+          data.append(key, profileData[key]);
+        }
+      });
+
+      const response = await updateProfile(data);
+      if (response.success) {
+        toast.success('Profile updated successfully');
+        setProfileData(prev => ({
+          ...prev,
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        }));
+      } else {
+        toast.error(response.message || 'Failed to update profile');
+      }
+    } catch (error) {
+      toast.error('Error updating profile');
+      console.error('Error:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black/95 flex items-center justify-center">
+        <div className="animate-pulse text-[#ff0080]">Loading...</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-8">
       <div className="flex justify-between items-center">
         <h1 className="text-4xl font-bold bg-gradient-to-r from-[#ff0080] to-[#7928ca] bg-clip-text text-transparent">
           Settings
         </h1>
       </div>
 
-      <div className="grid grid-cols-1 gap-8">
-        {/* Notification Settings */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-6 rounded-xl bg-black/40 border border-gray-800"
-        >
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 rounded-lg bg-[#ff0080]/20">
-              <FaBell className="w-6 h-6 text-[#ff0080]" />
-            </div>
-            <h2 className="text-xl font-semibold text-white">Notification Settings</h2>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-white">Email Notifications</p>
-                <p className="text-sm text-gray-400">Receive notifications via email</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.notifications.email}
-                  onChange={(e) => handleSettingChange('notifications', 'email', e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ff0080]"></div>
-              </label>
-            </div>
+      {/* Profile Section */}
+      <section className="bg-black/50 rounded-xl p-6 backdrop-blur-sm border border-gray-800">
+        <div className="flex items-center gap-2 mb-6">
+          <FaUser className="text-[#ff0080] text-xl" />
+          <h2 className="text-xl font-semibold text-white">Profile Settings</h2>
+        </div>
 
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-white">Push Notifications</p>
-                <p className="text-sm text-gray-400">Receive push notifications</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.notifications.push}
-                  onChange={(e) => handleSettingChange('notifications', 'push', e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ff0080]"></div>
-              </label>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Security Settings */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="p-6 rounded-xl bg-black/40 border border-gray-800"
-        >
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 rounded-lg bg-[#7928ca]/20">
-              <FaLock className="w-6 h-6 text-[#7928ca]" />
-            </div>
-            <h2 className="text-xl font-semibold text-white">Security Settings</h2>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-white">Two-Factor Authentication</p>
-                <p className="text-sm text-gray-400">Add an extra layer of security</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.security.twoFactor}
-                  onChange={(e) => handleSettingChange('security', 'twoFactor', e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#7928ca]"></div>
-              </label>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-white">Password Expiry (days)</p>
-                <p className="text-sm text-gray-400">Force password change after specified days</p>
-              </div>
-              <select
-                value={settings.security.passwordExpiry}
-                onChange={(e) => handleSettingChange('security', 'passwordExpiry', e.target.value)}
-                className="bg-black/40 border border-gray-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-[#7928ca]"
-              >
-                <option value="30">30 days</option>
-                <option value="60">60 days</option>
-                <option value="90">90 days</option>
-                <option value="never">Never</option>
-              </select>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* General Settings */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="p-6 rounded-xl bg-black/40 border border-gray-800"
-        >
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 rounded-lg bg-emerald-500/20">
-              <FaGlobe className="w-6 h-6 text-emerald-500" />
-            </div>
-            <h2 className="text-xl font-semibold text-white">General Settings</h2>
-          </div>
-
+        <form onSubmit={handleProfileSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-white mb-2">Time Zone</label>
-              <select
-                value={settings.general.timezone}
-                onChange={(e) => handleSettingChange('general', 'timezone', e.target.value)}
-                className="w-full bg-black/40 border border-gray-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-emerald-500"
-              >
-                <option value="UTC+5:30">UTC+5:30 (IST)</option>
-                <option value="UTC">UTC</option>
-                <option value="UTC+1">UTC+1</option>
-                {/* Add more timezone options */}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-white mb-2">Date Format</label>
-              <select
-                value={settings.general.dateFormat}
-                onChange={(e) => handleSettingChange('general', 'dateFormat', e.target.value)}
-                className="w-full bg-black/40 border border-gray-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-emerald-500"
-              >
-                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-              </select>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Attendance Settings */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="p-6 rounded-xl bg-black/40 border border-gray-800"
-        >
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 rounded-lg bg-blue-500/20">
-              <FaClock className="w-6 h-6 text-blue-500" />
-            </div>
-            <h2 className="text-xl font-semibold text-white">Attendance Settings</h2>
-          </div>
-
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-white">Allow Late Check-in</p>
-                <p className="text-sm text-gray-400">Allow users to check in after scheduled time</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={settings.attendance.allowLate}
-                  onChange={(e) => handleSettingChange('attendance', 'allowLate', e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
-              </label>
-            </div>
-
-            <div>
-              <label className="block text-white mb-2">Grace Period (minutes)</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Full Name</label>
               <input
-                type="number"
-                value={settings.attendance.graceTime}
-                onChange={(e) => handleSettingChange('attendance', 'graceTime', e.target.value)}
-                className="w-full bg-black/40 border border-gray-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
-                min="0"
-                max="60"
+                type="text"
+                name="name"
+                value={profileData.name}
+                onChange={handleProfileChange}
+                className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-2 text-white"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+              <input
+                type="email"
+                value={profileData.email}
+                className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-2 text-white"
+                disabled
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Phone</label>
+              <input
+                type="tel"
+                name="phone"
+                value={profileData.phone}
+                onChange={handleProfileChange}
+                className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-2 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Avatar</label>
+              <input
+                type="file"
+                name="avatar"
+                onChange={handleProfileChange}
+                accept="image/*"
+                className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-2 text-white"
               />
             </div>
           </div>
-        </motion.div>
 
-        {/* QR Code Settings */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="p-6 rounded-xl bg-black/40 border border-gray-800"
-        >
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 rounded-lg bg-purple-500/20">
-              <FaQrcode className="w-6 h-6 text-purple-500" />
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Current Password</label>
+              <input
+                type="password"
+                name="currentPassword"
+                value={profileData.currentPassword}
+                onChange={handleProfileChange}
+                className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-2 text-white"
+              />
             </div>
-            <h2 className="text-xl font-semibold text-white">QR Code Settings</h2>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">New Password</label>
+              <input
+                type="password"
+                name="newPassword"
+                value={profileData.newPassword}
+                onChange={handleProfileChange}
+                className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-2 text-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Confirm New Password</label>
+              <input
+                type="password"
+                name="confirmPassword"
+                value={profileData.confirmPassword}
+                onChange={handleProfileChange}
+                className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-2 text-white"
+              />
+            </div>
           </div>
 
-          <div className="space-y-6">
-            <div>
-              <label className="block text-white mb-2">QR Code Expiry (hours)</label>
-              <select
-                value={settings.qrCode.expiry}
-                onChange={(e) => handleSettingChange('qrCode', 'expiry', e.target.value)}
-                className="w-full bg-black/40 border border-gray-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-purple-500"
-              >
-                <option value="12">12 hours</option>
-                <option value="24">24 hours</option>
-                <option value="48">48 hours</option>
-                <option value="72">72 hours</option>
-              </select>
-            </div>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={saving}
+              className="bg-[#ff0080] hover:bg-[#ff0080]/90 text-white px-6 py-2 rounded-lg font-medium disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Profile'}
+            </button>
+          </div>
+        </form>
+      </section>
 
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-white">Allow Multiple Scans</p>
-                <p className="text-sm text-gray-400">Allow the same QR code to be scanned multiple times</p>
-              </div>
+      {/* Notifications Section */}
+      <section className="bg-black/50 rounded-xl p-6 backdrop-blur-sm border border-gray-800">
+        <div className="flex items-center gap-2 mb-6">
+          <FaBell className="text-[#ff0080] text-xl" />
+          <h2 className="text-xl font-semibold text-white">Notifications</h2>
+        </div>
+
+        <div className="space-y-4">
+          {Object.entries(settings.notifications).map(([key, value]) => (
+            <div key={key} className="flex items-center justify-between">
+              <span className="text-gray-300 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={settings.qrCode.allowMultiple}
-                  onChange={(e) => handleSettingChange('qrCode', 'allowMultiple', e.target.checked)}
+                  checked={value}
+                  onChange={(e) => handleSettingChange('notifications', key, e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500"></div>
+                <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ff0080]"></div>
               </label>
             </div>
-          </div>
-        </motion.div>
-
-        {/* Save Button */}
-        <div className="flex justify-end">
-          <button className="px-6 py-3 rounded-lg bg-gradient-to-r from-[#ff0080] to-[#7928ca] text-white font-medium hover:opacity-90 transition-opacity">
-            Save Changes
-          </button>
+          ))}
         </div>
-      </div>
+      </section>
+
+      {/* Security Section */}
+      <section className="bg-black/50 rounded-xl p-6 backdrop-blur-sm border border-gray-800">
+        <div className="flex items-center gap-2 mb-6">
+          <FaLock className="text-[#ff0080] text-xl" />
+          <h2 className="text-xl font-semibold text-white">Security</h2>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-300">Two-Factor Authentication</span>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.security.twoFactor}
+                onChange={(e) => handleSettingChange('security', 'twoFactor', e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ff0080]"></div>
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Password Expiry (days)</label>
+            <input
+              type="number"
+              value={settings.security.passwordExpiry}
+              onChange={(e) => handleSettingChange('security', 'passwordExpiry', e.target.value)}
+              className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-2 text-white"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Session Timeout (minutes)</label>
+            <input
+              type="number"
+              value={settings.security.sessionTimeout}
+              onChange={(e) => handleSettingChange('security', 'sessionTimeout', e.target.value)}
+              className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-2 text-white"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* General Settings */}
+      <section className="bg-black/50 rounded-xl p-6 backdrop-blur-sm border border-gray-800">
+        <div className="flex items-center gap-2 mb-6">
+          <FaGlobe className="text-[#ff0080] text-xl" />
+          <h2 className="text-xl font-semibold text-white">General</h2>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Timezone</label>
+            <select
+              value={settings.general.timezone}
+              onChange={(e) => handleSettingChange('general', 'timezone', e.target.value)}
+              className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-2 text-white"
+            >
+              <option value="UTC+5:30">IST (UTC+5:30)</option>
+              <option value="UTC">UTC</option>
+              <option value="UTC+1">UTC+1</option>
+              <option value="UTC+2">UTC+2</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Date Format</label>
+            <select
+              value={settings.general.dateFormat}
+              onChange={(e) => handleSettingChange('general', 'dateFormat', e.target.value)}
+              className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-2 text-white"
+            >
+              <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+              <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+              <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Language</label>
+            <select
+              value={settings.general.language}
+              onChange={(e) => handleSettingChange('general', 'language', e.target.value)}
+              className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-2 text-white"
+            >
+              <option value="en">English</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      {/* Attendance Settings */}
+      <section className="bg-black/50 rounded-xl p-6 backdrop-blur-sm border border-gray-800">
+        <div className="flex items-center gap-2 mb-6">
+          <FaClock className="text-[#ff0080] text-xl" />
+          <h2 className="text-xl font-semibold text-white">Attendance</h2>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-300">Allow Late Check-in</span>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.attendance.allowLate}
+                onChange={(e) => handleSettingChange('attendance', 'allowLate', e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ff0080]"></div>
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Grace Period (minutes)</label>
+            <input
+              type="number"
+              value={settings.attendance.graceTime}
+              onChange={(e) => handleSettingChange('attendance', 'graceTime', e.target.value)}
+              className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-2 text-white"
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-gray-300">Auto Check-out</span>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.attendance.autoCheckout}
+                onChange={(e) => handleSettingChange('attendance', 'autoCheckout', e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ff0080]"></div>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      {/* QR Code Settings */}
+      <section className="bg-black/50 rounded-xl p-6 backdrop-blur-sm border border-gray-800">
+        <div className="flex items-center gap-2 mb-6">
+          <FaQrcode className="text-[#ff0080] text-xl" />
+          <h2 className="text-xl font-semibold text-white">QR Code</h2>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">QR Code Expiry (hours)</label>
+            <input
+              type="number"
+              value={settings.qrCode.expiry}
+              onChange={(e) => handleSettingChange('qrCode', 'expiry', e.target.value)}
+              className="w-full bg-black/50 border border-gray-800 rounded-lg px-4 py-2 text-white"
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-gray-300">Allow Multiple Scans</span>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.qrCode.allowMultiple}
+                onChange={(e) => handleSettingChange('qrCode', 'allowMultiple', e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ff0080]"></div>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-gray-300">Regenerate Daily</span>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.qrCode.regenerateDaily}
+                onChange={(e) => handleSettingChange('qrCode', 'regenerateDaily', e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#ff0080]"></div>
+            </label>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

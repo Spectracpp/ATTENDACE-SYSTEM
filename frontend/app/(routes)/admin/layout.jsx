@@ -69,35 +69,21 @@ export default function AdminLayout({ children }) {
                 <span className="absolute top-0 right-0 w-2 h-2 bg-[#ff0080] rounded-full"></span>
               </button>
 
-              <div className="relative">
-                <button
-                  onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className="flex items-center gap-2 p-2 rounded-lg bg-gray-800/50 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
-                >
-                  <FaUser className="w-5 h-5" />
-                  <span>{user.name || 'Admin'}</span>
-                  <FaChevronDown className={`w-4 h-4 transition-transform ${isProfileOpen ? 'rotate-180' : ''}`} />
-                </button>
+              <button
+                onClick={() => router.push('/admin/settings')}
+                className="flex items-center gap-2 p-2 rounded-lg bg-gray-800/50 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
+              >
+                <FaUser className="w-5 h-5" />
+                <span>{user.name || 'Admin'}</span>
+              </button>
 
-                <AnimatePresence>
-                  {isProfileOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute right-0 mt-2 w-48 py-2 bg-gray-900 rounded-lg shadow-xl border border-gray-800"
-                    >
-                      <button
-                        onClick={handleLogout}
-                        className="w-full px-4 py-2 text-left text-gray-400 hover:bg-gray-800 hover:text-white transition-colors flex items-center gap-2"
-                      >
-                        <FaSignOutAlt className="w-4 h-4" />
-                        Logout
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 p-2 rounded-lg bg-gray-800/50 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
+                title="Logout"
+              >
+                <FaSignOutAlt className="w-5 h-5" />
+              </button>
             </div>
           </div>
         </header>

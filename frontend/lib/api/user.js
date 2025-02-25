@@ -1,94 +1,71 @@
 import { API_URL } from '@/config';
+import { apiRequest } from './base';
+
+export async function getCurrentUser() {
+  try {
+    const response = await apiRequest('/users/me');
+    return response;
+  } catch (error) {
+    console.error('Error fetching current user:', error);
+    throw error;
+  }
+}
+
+export async function updateProfile(data) {
+  try {
+    const response = await apiRequest('/users/profile', {
+      method: 'PUT',
+      body: data,
+      isFormData: true
+    });
+    return response;
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    throw error;
+  }
+}
 
 export async function getUsers() {
   try {
-    const response = await fetch(`${API_URL}/users`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      credentials: 'include',
-      mode: 'cors',
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-    return await response.json();
+    const response = await apiRequest('/users');
+    return response;
   } catch (error) {
     console.error('Error fetching users:', error);
-    return { success: false, users: [], message: 'Failed to fetch users' };
+    throw error;
   }
 }
 
 export async function getUser(id) {
   try {
-    const response = await fetch(`${API_URL}/users/${id}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      credentials: 'include',
-      mode: 'cors',
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-    return await response.json();
+    const response = await apiRequest(`/users/${id}`);
+    return response;
   } catch (error) {
     console.error('Error fetching user:', error);
-    return { success: false, message: 'Failed to fetch user' };
+    throw error;
   }
 }
 
 export async function updateUser(id, userData) {
   try {
-    const response = await fetch(`${API_URL}/users/${id}`, {
+    const response = await apiRequest(`/users/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(userData),
-      credentials: 'include',
-      mode: 'cors',
+      body: userData
     });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-    return await response.json();
+    return response;
   } catch (error) {
     console.error('Error updating user:', error);
-    return { success: false, message: 'Failed to update user' };
+    throw error;
   }
 }
 
 export async function deleteUser(id) {
   try {
-    const response = await fetch(`${API_URL}/users/${id}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      credentials: 'include',
-      mode: 'cors',
+    const response = await apiRequest(`/users/${id}`, {
+      method: 'DELETE'
     });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-    return await response.json();
+    return response;
   } catch (error) {
     console.error('Error deleting user:', error);
-    return { success: false, message: 'Failed to delete user' };
+    throw error;
   }
 }

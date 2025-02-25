@@ -153,6 +153,37 @@ router.post('/login',
  * @desc Get user profile
  * @access Private
  */
+
+/**
+ * @route GET /api/users/me
+ * @desc Get current user
+ * @access Private
+ */
+router.get('/me', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('-password');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    res.json({
+      success: true,
+      user
+    });
+  } catch (error) {
+    console.error('Error fetching current user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching current user'
+    });
+  }
+});
+
+
+
+
 router.get('/profile', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password');
@@ -175,6 +206,9 @@ router.get('/profile', auth, async (req, res) => {
     });
   }
 });
+
+
+
 
 /**
  * @route PUT /api/users/profile
