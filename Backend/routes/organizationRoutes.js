@@ -72,67 +72,15 @@ router.get('/my', auth, async (req, res) => {
 });
 
 /**
- * @route POST /api/organizations
- * @desc Create a new organization
- * @access Private
- */
-router.post('/',
-  auth,
-  organizationValidation.create,
-  async (req, res) => {
-    try {
-      const { name, description, type, settings } = req.body;
-
-      const organization = new Organization({
-        name,
-        description,
-        type,
-        settings: {
-          maxQrScans: settings?.maxQrScans || 1,
-          allowMultipleScans: settings?.allowMultipleScans || false,
-          locationRadius: settings?.locationRadius || 100,
-          ...settings
-        },
-        members: [{
-          user: req.user._id,
-          role: 'admin',
-          joinedAt: new Date()
-        }]
-      });
-
-      await organization.save();
-
-      res.status(201).json({
-        success: true,
-        message: 'Organization created successfully',
-        organization: {
-          _id: organization._id,
-          name: organization.name,
-          description: organization.description,
-          type: organization.type,
-          settings: organization.settings,
-          role: 'admin'
-        }
-      });
-    } catch (error) {
-      console.error('Create organization error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Error creating organization'
-      });
-    }
-});
-
-/**
  * @route GET /api/organizations/:id
- * @desc Get organization details
+ * @desc Get organization by ID
  * @access Private
  */
 router.get('/:id', auth, async (req, res) => {
   try {
     const organization = await Organization
       .findById(req.params.id)
-      .populate('members.user', 'name email')
+      .populate('members.user', 'name email avatar')
       .lean();
 
     if (!organization) {
@@ -143,11 +91,11 @@ router.get('/:id', auth, async (req, res) => {
     }
 
     // Check if user is a member
-    const member = organization.members.find(m => 
-      m.user._id.toString() === req.user._id.toString()
+    const isMember = organization.members.some(
+      member => member.user._id.toString() === req.user._id.toString()
     );
 
-    if (!member) {
+    if (!isMember && organization.type !== 'public') {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -156,27 +104,50 @@ router.get('/:id', auth, async (req, res) => {
 
     res.json({
       success: true,
-      organization: {
-        _id: organization._id,
-        name: organization.name,
-        description: organization.description,
-        type: organization.type,
-        settings: organization.settings,
-        members: organization.members.map(m => ({
-          _id: m.user._id,
-          name: m.user.name,
-          email: m.user.email,
-          role: m.role,
-          joinedAt: m.joinedAt
-        })),
-        role: member.role
-      }
+      organization
     });
   } catch (error) {
     console.error('Get organization error:', error);
-    res.status(500).json({
+    res.status(500).json({ 
       success: false,
-      message: 'Error fetching organization details'
+      message: 'Error fetching organization' 
+    });
+  }
+});
+
+/**
+ * @route POST /api/organizations
+ * @desc Create a new organization
+ * @access Private
+ */
+router.post('/', auth, async (req, res) => {
+  try {
+    const { name, description, type } = req.body;
+
+    const organization = new Organization({
+      name,
+      description,
+      type,
+      code: Math.random().toString(36).substring(2, 8).toUpperCase(),
+      members: [{
+        user: req.user._id,
+        role: 'owner',
+        status: 'active'
+      }]
+    });
+
+    await organization.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Organization created successfully',
+      organization
+    });
+  } catch (error) {
+    console.error('Create organization error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error creating organization' 
     });
   }
 });
@@ -184,247 +155,238 @@ router.get('/:id', auth, async (req, res) => {
 /**
  * @route PUT /api/organizations/:id
  * @desc Update organization
- * @access Private (Admin)
+ * @access Private (Admin/Owner only)
  */
-router.put('/:id',
-  auth,
-  authorize('admin'),
-  organizationValidation.update,
-  async (req, res) => {
-    try {
-      const { name, description, type, settings } = req.body;
-      const organization = await Organization.findById(req.params.id);
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const { name, description, type, settings } = req.body;
+    const updates = {
+      ...(name && { name }),
+      ...(description && { description }),
+      ...(type && { type }),
+      ...(settings && { settings })
+    };
 
-      if (!organization) {
-        return res.status(404).json({
-          success: false,
-          message: 'Organization not found'
-        });
-      }
+    const organization = await Organization.findOneAndUpdate(
+      { 
+        _id: req.params.id,
+        'members.user': req.user._id,
+        'members.role': { $in: ['admin', 'owner'] }
+      },
+      { $set: updates },
+      { new: true }
+    );
 
-      // Update fields
-      if (name) organization.name = name;
-      if (description) organization.description = description;
-      if (type) organization.type = type;
-      if (settings) {
-        organization.settings = {
-          ...organization.settings,
-          ...settings
-        };
-      }
-
-      await organization.save();
-
-      res.json({
-        success: true,
-        message: 'Organization updated successfully',
-        organization: {
-          _id: organization._id,
-          name: organization.name,
-          description: organization.description,
-          type: organization.type,
-          settings: organization.settings
-        }
-      });
-    } catch (error) {
-      console.error('Update organization error:', error);
-      res.status(500).json({
+    if (!organization) {
+      return res.status(404).json({
         success: false,
-        message: 'Error updating organization'
+        message: 'Organization not found or unauthorized'
       });
     }
+
+    res.json({
+      success: true,
+      message: 'Organization updated successfully',
+      organization
+    });
+  } catch (error) {
+    console.error('Update organization error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error updating organization' 
+    });
+  }
 });
 
 /**
  * @route DELETE /api/organizations/:id
- * @desc Delete organization
- * @access Private (Admin)
+ * @desc Delete organization (soft delete)
+ * @access Private (Owner only)
  */
-router.delete('/:id',
-  auth,
-  authorize('admin'),
-  async (req, res) => {
-    try {
-      const organization = await Organization.findById(req.params.id);
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const organization = await Organization.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        'members.user': req.user._id,
+        'members.role': 'owner'
+      },
+      { $set: { status: 'inactive' } },
+      { new: true }
+    );
 
-      if (!organization) {
-        return res.status(404).json({
-          success: false,
-          message: 'Organization not found'
-        });
-      }
-
-      await organization.remove();
-
-      res.json({
-        success: true,
-        message: 'Organization deleted successfully'
-      });
-    } catch (error) {
-      console.error('Delete organization error:', error);
-      res.status(500).json({
+    if (!organization) {
+      return res.status(404).json({
         success: false,
-        message: 'Error deleting organization'
+        message: 'Organization not found or unauthorized'
       });
     }
+
+    res.json({
+      success: true,
+      message: 'Organization deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete organization error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error deleting organization' 
+    });
+  }
 });
 
 /**
  * @route POST /api/organizations/:id/members
  * @desc Add member to organization
- * @access Private (Admin)
+ * @access Private (Admin/Owner only)
  */
-router.post('/:id/members',
-  auth,
-  authorize('admin'),
-  organizationValidation.addMember,
-  async (req, res) => {
-    try {
-      const { email, role } = req.body;
-      const organization = await Organization.findById(req.params.id);
+router.post('/:id/members', auth, async (req, res) => {
+  try {
+    const { userId, role = 'member' } = req.body;
 
-      if (!organization) {
-        return res.status(404).json({
-          success: false,
-          message: 'Organization not found'
-        });
-      }
-
-      // Find user by email
-      const user = await User.findOne({ email });
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found'
-        });
-      }
-
-      // Check if already a member
-      if (organization.members.some(m => m.user.toString() === user._id.toString())) {
-        return res.status(400).json({
-          success: false,
-          message: 'User is already a member'
-        });
-      }
-
-      // Add member
-      organization.members.push({
-        user: user._id,
-        role: role || 'member',
-        joinedAt: new Date()
-      });
-
-      await organization.save();
-
-      res.json({
-        success: true,
-        message: 'Member added successfully',
-        member: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: role || 'member'
+    const organization = await Organization.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        'members.user': req.user._id,
+        'members.role': { $in: ['admin', 'owner'] }
+      },
+      {
+        $addToSet: {
+          members: {
+            user: userId,
+            role,
+            status: 'active'
+          }
         }
-      });
-    } catch (error) {
-      console.error('Add member error:', error);
-      res.status(500).json({
+      },
+      { new: true }
+    );
+
+    if (!organization) {
+      return res.status(404).json({
         success: false,
-        message: 'Error adding member'
+        message: 'Organization not found or unauthorized'
       });
     }
+
+    res.json({
+      success: true,
+      message: 'Member added successfully',
+      organization
+    });
+  } catch (error) {
+    console.error('Add member error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error adding member' 
+    });
+  }
 });
 
 /**
  * @route DELETE /api/organizations/:id/members/:userId
  * @desc Remove member from organization
- * @access Private (Admin)
+ * @access Private (Admin/Owner only)
  */
-router.delete('/:id/members/:userId',
-  auth,
-  authorize('admin'),
-  async (req, res) => {
-    try {
-      const organization = await Organization.findById(req.params.id);
+router.delete('/:id/members/:userId', auth, async (req, res) => {
+  try {
+    const organization = await Organization.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        'members.user': req.user._id,
+        'members.role': { $in: ['admin', 'owner'] }
+      },
+      {
+        $pull: {
+          members: { user: req.params.userId }
+        }
+      },
+      { new: true }
+    );
 
-      if (!organization) {
-        return res.status(404).json({
-          success: false,
-          message: 'Organization not found'
-        });
-      }
-
-      // Remove member
-      organization.members = organization.members.filter(
-        m => m.user.toString() !== req.params.userId
-      );
-
-      await organization.save();
-
-      res.json({
-        success: true,
-        message: 'Member removed successfully'
-      });
-    } catch (error) {
-      console.error('Remove member error:', error);
-      res.status(500).json({
+    if (!organization) {
+      return res.status(404).json({
         success: false,
-        message: 'Error removing member'
+        message: 'Organization not found or unauthorized'
       });
     }
+
+    res.json({
+      success: true,
+      message: 'Member removed successfully'
+    });
+  } catch (error) {
+    console.error('Remove member error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error removing member' 
+    });
+  }
 });
 
 /**
- * @route PUT /api/organizations/:id/members/:userId
- * @desc Update member role
- * @access Private (Admin)
+ * @route GET /api/organizations/:id/members
+ * @desc Get organization members
+ * @access Private
  */
-router.put('/:id/members/:userId',
-  auth,
-  authorize('admin'),
-  organizationValidation.updateMember,
-  async (req, res) => {
-    try {
-      const { role } = req.body;
-      const organization = await Organization.findById(req.params.id);
+router.get('/:id/members', auth, async (req, res) => {
+  try {
+    const organization = await Organization
+      .findById(req.params.id)
+      .populate('members.user', 'name email avatar')
+      .select('members')
+      .lean();
 
-      if (!organization) {
-        return res.status(404).json({
-          success: false,
-          message: 'Organization not found'
-        });
-      }
-
-      // Update member role
-      const member = organization.members.find(
-        m => m.user.toString() === req.params.userId
-      );
-
-      if (!member) {
-        return res.status(404).json({
-          success: false,
-          message: 'Member not found'
-        });
-      }
-
-      member.role = role;
-      await organization.save();
-
-      res.json({
-        success: true,
-        message: 'Member role updated successfully',
-        member: {
-          _id: req.params.userId,
-          role
-        }
-      });
-    } catch (error) {
-      console.error('Update member role error:', error);
-      res.status(500).json({
+    if (!organization) {
+      return res.status(404).json({
         success: false,
-        message: 'Error updating member role'
+        message: 'Organization not found'
       });
     }
+
+    // Check if user is a member
+    const isMember = organization.members.some(
+      member => member.user._id.toString() === req.user._id.toString()
+    );
+
+    if (!isMember) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+
+    res.json({
+      success: true,
+      members: organization.members
+    });
+  } catch (error) {
+    console.error('Get members error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching members' 
+    });
+  }
+});
+
+// Get all organizations (public endpoint for registration)
+router.get('/public', async (req, res) => {
+  try {
+    const organizations = await Organization.find({ status: 'active' })
+      .select('name code type')
+      .sort('name');
+    
+    res.json({
+      success: true,
+      organizations
+    });
+  } catch (error) {
+    console.error('Error fetching organizations:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch organizations'
+    });
+  }
 });
 
 module.exports = router;

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { FaUser, FaEnvelope, FaPhone, FaBuilding, FaGraduationCap, FaBook } from 'react-icons/fa';
 import { updateProfile, getCurrentUser } from '@/lib/api/user';
+import OrganizationSection from '@/components/Profile/OrganizationSection';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -123,92 +124,140 @@ export default function ProfilePage() {
         <h1 className="text-2xl font-bold mb-8">Profile Settings</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6 pb-8">
-          {/* Basic Information */}
-          <div className="bg-gray-800 p-6 rounded-lg">
-            <h2 className="text-xl font-semibold mb-4">Basic Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  <FaUser className="inline mr-2" />
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                  required
-                />
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Profile Information */}
+            <div className="card bg-base-100 shadow-xl">
+              <div className="card-body">
+                <h2 className="card-title flex items-center gap-2">
+                  <FaUser className="text-primary" />
+                  Profile Information
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      <FaUser className="inline mr-2" />
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
+                      required
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  <FaEnvelope className="inline mr-2" />
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                  disabled
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      <FaEnvelope className="inline mr-2" />
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
+                      disabled
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  <FaPhone className="inline mr-2" />
-                  Phone
-                </label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      <FaPhone className="inline mr-2" />
+                      Phone
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  <FaBuilding className="inline mr-2" />
-                  Department
-                </label>
-                <input
-                  type="text"
-                  name="department"
-                  value={formData.department}
-                  onChange={handleChange}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      <FaBuilding className="inline mr-2" />
+                      Department
+                    </label>
+                    <input
+                      type="text"
+                      name="department"
+                      value={formData.department}
+                      onChange={handleChange}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  <FaGraduationCap className="inline mr-2" />
-                  Course
-                </label>
-                <input
-                  type="text"
-                  name="course"
-                  value={formData.course}
-                  onChange={handleChange}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      <FaGraduationCap className="inline mr-2" />
+                      Course
+                    </label>
+                    <input
+                      type="text"
+                      name="course"
+                      value={formData.course}
+                      onChange={handleChange}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  <FaBook className="inline mr-2" />
-                  Semester
-                </label>
-                <input
-                  type="text"
-                  name="semester"
-                  value={formData.semester}
-                  onChange={handleChange}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                />
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      <FaBook className="inline mr-2" />
+                      Semester
+                    </label>
+                    <input
+                      type="text"
+                      name="semester"
+                      value={formData.semester}
+                      onChange={handleChange}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Password Change */}
+            <div className="card bg-base-100 shadow-xl">
+              <div className="card-body">
+                <h2 className="card-title">Change Password</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Current Password</label>
+                    <input
+                      type="password"
+                      name="currentPassword"
+                      value={formData.currentPassword}
+                      onChange={handleChange}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">New Password</label>
+                    <input
+                      type="password"
+                      name="newPassword"
+                      value={formData.newPassword}
+                      onChange={handleChange}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Confirm New Password</label>
+                    <input
+                      type="password"
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -228,43 +277,9 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Change Password */}
-          <div className="bg-gray-800 p-6 rounded-lg">
-            <h2 className="text-xl font-semibold mb-4">Change Password</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Current Password</label>
-                <input
-                  type="password"
-                  name="currentPassword"
-                  value={formData.currentPassword}
-                  onChange={handleChange}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">New Password</label>
-                <input
-                  type="password"
-                  name="newPassword"
-                  value={formData.newPassword}
-                  onChange={handleChange}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Confirm New Password</label>
-                <input
-                  type="password"
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2"
-                />
-              </div>
-            </div>
+          {/* Organizations Section */}
+          <div className="mt-8">
+            <OrganizationSection />
           </div>
 
           <div className="flex justify-end">

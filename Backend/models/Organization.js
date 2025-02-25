@@ -18,6 +18,11 @@ const organizationSchema = new mongoose.Schema({
     required: true,
     enum: ['business', 'education', 'government', 'non-profit', 'other']
   },
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'suspended'],
+    default: 'active'
+  },
   description: {
     type: String,
     trim: true
@@ -25,6 +30,17 @@ const organizationSchema = new mongoose.Schema({
   address: {
     type: String,
     trim: true
+  },
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number],
+      default: [0, 0]
+    }
   },
   contactEmail: {
     type: String,
@@ -40,28 +56,58 @@ const organizationSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  members: {
-    type: [{
-      user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-      },
-      role: {
+  members: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    role: {
+      type: String,
+      enum: ['member', 'admin', 'owner'],
+      default: 'member'
+    },
+    status: {
+      type: String,
+      enum: ['active', 'inactive', 'pending'],
+      default: 'active'
+    },
+    joinedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  settings: {
+    allowMemberInvites: {
+      type: Boolean,
+      default: false
+    },
+    requireAdminApproval: {
+      type: Boolean,
+      default: true
+    },
+    attendanceRadius: {
+      type: Number,
+      default: 100 // meters
+    },
+    qrCodeExpiry: {
+      type: Number,
+      default: 5 // minutes
+    },
+    workingHours: {
+      start: {
         type: String,
-        enum: ['member', 'admin', 'owner'],
-        default: 'member'
+        default: '09:00'
       },
-      joinedAt: {
-        type: Date,
-        default: Date.now
+      end: {
+        type: String,
+        default: '17:00'
       }
-    }],
-    default: [] // Initialize with empty array
-  },
-  status: {
-    type: String,
-    enum: ['active', 'inactive', 'suspended'],
-    default: 'active'
+    },
+    workingDays: {
+      type: [String],
+      default: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+    }
   }
 }, {
   timestamps: true,

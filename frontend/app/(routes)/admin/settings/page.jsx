@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FaCog, FaBell, FaLock, FaGlobe, FaClock, FaQrcode, FaUser } from 'react-icons/fa';
+import { FaCog, FaBell, FaLock, FaGlobe, FaClock, FaQrcode, FaUser, FaBuilding } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { updateProfile, getCurrentUser } from '@/lib/api/user';
+import OrganizationSettings from '@/components/Settings/OrganizationSettings';
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -465,6 +466,11 @@ export default function SettingsPage() {
           </div>
         </div>
       </section>
+
+      {/* Organization Management Section */}
+      <div className="mt-8">
+        <OrganizationSettings isAdmin={true} profileData={profileData} />
+      </div>
     </div>
   );
 }

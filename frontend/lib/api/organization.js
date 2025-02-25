@@ -106,3 +106,17 @@ export async function updateOrganizationMember(orgId, memberId, data) {
     throw error;
   }
 }
+
+export async function getPublicOrganizations() {
+  try {
+    const response = await fetch('/api/organizations/public');
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching public organizations:', error);
+    return {
+      success: false,
+      message: 'Failed to fetch organizations'
+    };
+  }
+}
