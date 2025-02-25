@@ -5,97 +5,116 @@ const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const compression = require('compression');
 
-const authRoutes = require('./routes/auth');
+const authRoutes = require('./routes/authRoutes');
 const authCheckRoutes = require('./routes/auth-check');
 const userRoutes = require('./routes/userRoutes');
 const organizationRoutes = require('./routes/organizationRoutes');
 const qrCodeRoutes = require('./routes/qrCodeRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const attendanceRoutes = require('./routes/attendanceRoutes');
 
 require('dotenv').config();
 
 const app = express();
 
-// Security middleware
-app.use(helmet());
-
-// Enable CORS
-app.use(cors({
-  origin: ['http://localhost:3000', process.env.FRONTEND_URL || 'http://localhost:3001'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+// Security middleware with relaxed settings for development
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "blob:", "*"],
+      connectSrc: ["'self'", "*"]
+    }
+  }
 }));
+
+// CORS configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    // In development, allow all origins
+    if (process.env.NODE_ENV !== 'production') {
+      callback(null, true);
+      return;
+    }
+
+    const allowedOrigins = [process.env.FRONTEND_URL];
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`Origin ${origin} not allowed by CORS`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  exposedHeaders: ['Set-Cookie', 'Date', 'ETag'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+};
+
+// Enable CORS with credentials
+app.use(cors(corsOptions));
+
+// Parse cookies
+app.use(cookieParser());
+
+// Parse JSON bodies
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Enable compression
+app.use(compression());
 
 // Logging
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
-// Request parsing
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
+// Cookie configuration
+const cookieConfig = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+};
 
-// Compression
-app.use(compression());
+// Make cookie config available to routes
+app.use((req, res, next) => {
+  res.cookie = res.cookie.bind(res);
+  res.clearCookie = res.clearCookie.bind(res);
+  res.locals.cookieConfig = cookieConfig;
+  next();
+});
 
 // Serve static files
 app.use('/uploads', express.static('uploads'));
 
-// Health check
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
-});
-
 // API routes
 app.use('/api/auth', authRoutes);
-app.use('/api/auth/check', authCheckRoutes);
+app.use('/api/auth-check', authCheckRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/qr', qrCodeRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/attendance', attendanceRoutes);
 
-// Static files
-app.use(express.static('public'));
+// Health check endpoint
+app.get('/api/health-check', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Global error handler:', err);
-
-  // Handle Mongoose validation errors
-  if (err.name === 'ValidationError') {
-    const validationErrors = {};
-    for (let field in err.errors) {
-      validationErrors[field] = err.errors[field].message;
-    }
-    return res.status(400).json({
-      success: false,
-      message: 'Validation failed',
-      errors: validationErrors
-    });
-  }
-
-  // Handle duplicate key errors
-  if (err.code === 11000) {
-    const field = Object.keys(err.keyPattern)[0];
-    return res.status(409).json({
-      success: false,
-      message: `This ${field} is already registered`,
-      field
-    });
-  }
-
-  // Default error response
+  console.error(err.stack);
   res.status(err.status || 500).json({
     success: false,
-    message: err.message || 'Internal server error'
-  });
-});
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found'
+    message: err.message || 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err : {}
   });
 });
 

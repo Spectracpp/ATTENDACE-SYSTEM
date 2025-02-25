@@ -2,9 +2,40 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { auth } = require('../middleware/auth');
 const User = require('../models/User');
 const { rateLimiter } = require('../middleware/rateLimiter');
+
+// Middleware to verify JWT token
+const verifyToken = async (req, res, next) => {
+  try {
+    const token = req.cookies.token || req.header('Authorization')?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId || decoded.user?.id).select('-password');
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    req.user = user;
+    req.token = token;
+    next();
+  } catch (error) {
+    res.status(401).json({
+      success: false,
+      message: 'Invalid token'
+    });
+  }
+};
 
 // Password validation function
 const validatePassword = (password) => {
@@ -327,18 +358,11 @@ router.post('/verify-hash', async (req, res) => {
  * @desc Verify user token and return user data
  * @access Private
  */
-router.get('/verify', auth, async (req, res) => {
+router.get('/verify', verifyToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId).select('-password');
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
     res.json({
       success: true,
-      user
+      user: req.user
     });
   } catch (error) {
     console.error('Verify error:', error);
@@ -354,44 +378,15 @@ router.get('/verify', auth, async (req, res) => {
  * @desc Check user authentication status
  * @access Private
  */
-router.get('/check', async (req, res) => {
+router.get('/check', verifyToken, async (req, res) => {
   try {
-    // Get token from header
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        message: 'No token found'
-      });
-    }
-
-    const token = authHeader.split(' ')[1];
-    
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Find user
-    const user = await User.findById(decoded.user.id).select('-password');
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
     return res.json({
       success: true,
-      user
+      user: req.user
     });
 
   } catch (error) {
     console.error('Auth check error:', error);
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token'
-      });
-    }
     return res.status(500).json({
       success: false,
       message: 'Server error during auth check'

@@ -212,12 +212,11 @@ router.post('/register', async (req, res) => {
 });
 
 // Login User/Admin
-router.post('/login/:role', async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
-    const { role } = req.params;
-    const { email, password } = req.body;
+    const { email, password, role = 'user' } = req.body;
 
-    console.log('Login attempt:', { role, email });
+    console.log('Login attempt:', { email, role });
 
     // Validate role
     if (!['user', 'admin'].includes(role)) {
@@ -254,14 +253,6 @@ router.post('/login/:role', async (req, res) => {
       return res.status(401).json({
         success: false,
         message: `Account is locked. Please try again in ${waitMinutes} minutes`
-      });
-    }
-
-    // Check if account is verified
-    if (!user.isVerified) {
-      return res.status(401).json({
-        success: false,
-        message: 'Please verify your email before logging in'
       });
     }
 
@@ -303,42 +294,50 @@ router.post('/login/:role', async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id },
+      { 
+        user: {
+          id: user._id,
+          role: user.role
+        }
+      },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    console.log('Login successful:', {
-      userId: user._id,
-      email: user.email,
-      role: user.role
+    // Set token in cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
     });
 
+    // Send response
     res.json({
       success: true,
       message: 'Login successful',
-      token,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        ...(role === 'admin' ? { organizationName: user.organizationName } : {
-          studentId: user.studentId,
-          course: user.course,
-          semester: user.semester,
-          department: user.department
-        })
-      }
+        organization: user.organizationName
+      },
+      token
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Login failed. Please try again later.',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: 'Login failed. Please try again.'
     });
   }
+});
+
+// Support legacy role-specific login
+router.post('/login/:role', async (req, res) => {
+  req.body.role = req.params.role;
+  return router.handle(req, res);
 });
 
 // Check Auth Status
@@ -366,7 +365,7 @@ router.get('/check', auth, async (req, res) => {
 
 // Logout
 router.post('/logout', (req, res) => {
-  res.clearCookie('auth_token'); // Use consistent cookie name
+  res.clearCookie('token'); // Use consistent cookie name
   res.json({ 
     success: true,
     message: 'Logged out successfully' 

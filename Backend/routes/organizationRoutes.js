@@ -4,7 +4,7 @@ const Organization = require('../models/Organization');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const { auth } = require('../middleware/auth');
-const { authorize, authorizeOrganization } = require('../middleware/organization');
+const { authorize } = require('../middleware/organization');
 const { organizationValidation } = require('../middleware/validate');
 const { rateLimiter } = require('../middleware/rateLimiter');
 
@@ -17,17 +17,17 @@ router.get('/', async (req, res) => {
   try {
     const organizations = await Organization
       .find({ status: 'active' })
-      .select('name code type')
-      .lean()
-      .exec();
+      .select('name description type members')
+      .lean();
 
     res.json({
       success: true,
       organizations: organizations.map(org => ({
         _id: org._id,
         name: org.name,
-        code: org.code,
-        type: org.type
+        description: org.description,
+        type: org.type,
+        memberCount: org.members?.length || 0
       }))
     });
   } catch (error) {
@@ -35,6 +35,38 @@ router.get('/', async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: 'Error fetching organizations' 
+    });
+  }
+});
+
+/**
+ * @route GET /api/organizations/my
+ * @desc Get user's organizations
+ * @access Private
+ */
+router.get('/my', auth, async (req, res) => {
+  try {
+    const organizations = await Organization
+      .find({ 'members.user': req.user._id })
+      .select('name description type members settings')
+      .lean();
+
+    res.json({
+      success: true,
+      organizations: organizations.map(org => ({
+        _id: org._id,
+        name: org.name,
+        description: org.description,
+        type: org.type,
+        role: org.members.find(m => m.user.toString() === req.user._id.toString())?.role,
+        settings: org.settings
+      }))
+    });
+  } catch (error) {
+    console.error('Fetch user organizations error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching your organizations'
     });
   }
 });
@@ -49,95 +81,104 @@ router.post('/',
   organizationValidation.create,
   async (req, res) => {
     try {
-      const { name, code, type, settings } = req.body;
+      const { name, description, type, settings } = req.body;
 
-      // Check if organization exists
-      const existingOrg = await Organization.findOne({ 
-        $or: [{ code }, { name }]
-      });
-      
-      if (existingOrg) {
-        return res.status(400).json({ 
-          message: 'Organization with this name or code already exists' 
-        });
-      }
-
-      // Create organization
       const organization = new Organization({
         name,
-        code,
+        description,
         type,
-        settings,
-        createdBy: req.user._id
-      });
-
-      // Add creator as owner
-      organization.members.push({
-        user: req.user._id,
-        role: 'owner'
+        settings: {
+          maxQrScans: settings?.maxQrScans || 1,
+          allowMultipleScans: settings?.allowMultipleScans || false,
+          locationRadius: settings?.locationRadius || 100,
+          ...settings
+        },
+        members: [{
+          user: req.user._id,
+          role: 'admin',
+          joinedAt: new Date()
+        }]
       });
 
       await organization.save();
 
-      // Add organization to user's organizations with owner role
-      await User.findByIdAndUpdate(req.user._id, {
-        $push: {
-          organizations: {
-            organization: organization._id,
-            role: 'owner'
-          }
-        }
-      });
-
-      // Get updated user data
-      const updatedUser = await User.findById(req.user._id)
-        .populate('organizations.organization', 'name code type status');
-
-      // Generate new token with updated permissions
-      const token = jwt.sign(
-        { userId: updatedUser._id, role: updatedUser.role },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-
       res.status(201).json({
+        success: true,
         message: 'Organization created successfully',
-        organization,
-        token
+        organization: {
+          _id: organization._id,
+          name: organization.name,
+          description: organization.description,
+          type: organization.type,
+          settings: organization.settings,
+          role: 'admin'
+        }
       });
     } catch (error) {
       console.error('Create organization error:', error);
-      res.status(500).json({ message: 'Error creating organization' });
+      res.status(500).json({
+        success: false,
+        message: 'Error creating organization'
+      });
     }
 });
 
 /**
  * @route GET /api/organizations/:id
- * @desc Get organization by ID
+ * @desc Get organization details
  * @access Private
  */
-router.get('/:id',
-  auth,
-  async (req, res) => {
-    try {
-      const organization = await Organization
-        .findById(req.params.id)
-        .populate('members.user', 'firstName lastName email');
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const organization = await Organization
+      .findById(req.params.id)
+      .populate('members.user', 'name email')
+      .lean();
 
-      if (!organization) {
-        return res.status(404).json({ message: 'Organization not found' });
-      }
-
-      // Check if user has access
-      if (!organization.hasRole(req.user._id)) {
-        return res.status(403).json({ message: 'Access denied' });
-      }
-
-      res.json({ organization });
-    } catch (error) {
-      console.error('Get organization error:', error);
-      res.status(500).json({ message: 'Error fetching organization' });
+    if (!organization) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organization not found'
+      });
     }
+
+    // Check if user is a member
+    const member = organization.members.find(m => 
+      m.user._id.toString() === req.user._id.toString()
+    );
+
+    if (!member) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+
+    res.json({
+      success: true,
+      organization: {
+        _id: organization._id,
+        name: organization.name,
+        description: organization.description,
+        type: organization.type,
+        settings: organization.settings,
+        members: organization.members.map(m => ({
+          _id: m.user._id,
+          name: m.user.name,
+          email: m.user.email,
+          role: m.role,
+          joinedAt: m.joinedAt
+        })),
+        role: member.role
+      }
+    });
+  } catch (error) {
+    console.error('Get organization error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching organization details'
+    });
+  }
 });
 
 /**
@@ -147,258 +188,242 @@ router.get('/:id',
  */
 router.put('/:id',
   auth,
+  authorize('admin'),
+  organizationValidation.update,
   async (req, res) => {
     try {
-      const { name, settings } = req.body;
+      const { name, description, type, settings } = req.body;
       const organization = await Organization.findById(req.params.id);
 
       if (!organization) {
-        return res.status(404).json({ message: 'Organization not found' });
+        return res.status(404).json({
+          success: false,
+          message: 'Organization not found'
+        });
       }
 
       // Update fields
       if (name) organization.name = name;
-      if (settings) organization.settings = { ...organization.settings, ...settings };
+      if (description) organization.description = description;
+      if (type) organization.type = type;
+      if (settings) {
+        organization.settings = {
+          ...organization.settings,
+          ...settings
+        };
+      }
 
       await organization.save();
 
       res.json({
+        success: true,
         message: 'Organization updated successfully',
-        organization
+        organization: {
+          _id: organization._id,
+          name: organization.name,
+          description: organization.description,
+          type: organization.type,
+          settings: organization.settings
+        }
       });
     } catch (error) {
       console.error('Update organization error:', error);
-      res.status(500).json({ message: 'Error updating organization' });
+      res.status(500).json({
+        success: false,
+        message: 'Error updating organization'
+      });
+    }
+});
+
+/**
+ * @route DELETE /api/organizations/:id
+ * @desc Delete organization
+ * @access Private (Admin)
+ */
+router.delete('/:id',
+  auth,
+  authorize('admin'),
+  async (req, res) => {
+    try {
+      const organization = await Organization.findById(req.params.id);
+
+      if (!organization) {
+        return res.status(404).json({
+          success: false,
+          message: 'Organization not found'
+        });
+      }
+
+      await organization.remove();
+
+      res.json({
+        success: true,
+        message: 'Organization deleted successfully'
+      });
+    } catch (error) {
+      console.error('Delete organization error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error deleting organization'
+      });
     }
 });
 
 /**
  * @route POST /api/organizations/:id/members
- * @desc Add a member to an organization
- * @access Private (Organization Owner)
+ * @desc Add member to organization
+ * @access Private (Admin)
  */
 router.post('/:id/members',
   auth,
+  authorize('admin'),
   organizationValidation.addMember,
   async (req, res) => {
     try {
       const { email, role } = req.body;
-      const organizationId = req.params.id;
+      const organization = await Organization.findById(req.params.id);
 
-      // Get organization
-      const organization = await Organization.findById(organizationId);
       if (!organization) {
-        return res.status(404).json({ message: 'Organization not found' });
-      }
-
-      // Check if user has permission
-      if (!organization.hasRole(req.user._id, 'owner')) {
-        return res.status(403).json({ message: 'Insufficient permissions' });
+        return res.status(404).json({
+          success: false,
+          message: 'Organization not found'
+        });
       }
 
       // Find user by email
       const user = await User.findOne({ email });
       if (!user) {
-        return res.status(404).json({ message: 'User not found' });
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
       }
 
-      // Add member to organization
-      await organization.addMember(user._id, role || 'member');
+      // Check if already a member
+      if (organization.members.some(m => m.user.toString() === user._id.toString())) {
+        return res.status(400).json({
+          success: false,
+          message: 'User is already a member'
+        });
+      }
 
-      // Add organization to user's organizations
-      await User.findByIdAndUpdate(user._id, {
-        $push: {
-          organizations: {
-            organization: organizationId,
-            role: role || 'member'
-          }
-        }
+      // Add member
+      organization.members.push({
+        user: user._id,
+        role: role || 'member',
+        joinedAt: new Date()
       });
 
-      // Get updated user data
-      const updatedUser = await User.findById(user._id)
-        .populate('organizations.organization', 'name code type status');
+      await organization.save();
 
-      // Generate new token for the added user
-      const token = jwt.sign(
-        { userId: updatedUser._id, role: updatedUser.role },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-
-      res.json({ 
+      res.json({
+        success: true,
         message: 'Member added successfully',
-        token
+        member: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: role || 'member'
+        }
       });
     } catch (error) {
       console.error('Add member error:', error);
-      res.status(500).json({ message: 'Error adding member' });
+      res.status(500).json({
+        success: false,
+        message: 'Error adding member'
+      });
     }
 });
 
 /**
  * @route DELETE /api/organizations/:id/members/:userId
  * @desc Remove member from organization
- * @access Private (Organization Owner)
+ * @access Private (Admin)
  */
 router.delete('/:id/members/:userId',
   auth,
-  async (req, res) => {
-    try {
-      const organizationId = req.params.id;
-      const userId = req.params.userId;
-
-      // Get organization
-      const organization = await Organization.findById(organizationId);
-      if (!organization) {
-        return res.status(404).json({ message: 'Organization not found' });
-      }
-
-      // Check if user has permission
-      if (!organization.hasRole(req.user._id, 'owner')) {
-        return res.status(403).json({ message: 'Insufficient permissions' });
-      }
-
-      // Remove member from organization
-      await organization.removeMember(userId);
-
-      // Remove organization from user's organizations
-      await User.findByIdAndUpdate(userId, {
-        $pull: {
-          organizations: {
-            organization: organizationId
-          }
-        }
-      });
-
-      // Get updated user data
-      const updatedUser = await User.findById(userId)
-        .populate('organizations.organization', 'name code type status');
-
-      // Generate new token for the removed user
-      const token = jwt.sign(
-        { userId: updatedUser._id, role: updatedUser.role },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-
-      res.json({ 
-        message: 'Member removed successfully',
-        token
-      });
-    } catch (error) {
-      console.error('Remove member error:', error);
-      res.status(500).json({ message: 'Error removing member' });
-    }
-});
-
-/**
- * @route GET /api/organizations/:id/statistics
- * @desc Get organization statistics
- * @access Private (Admin)
- */
-router.get('/:id/statistics',
-  auth,
+  authorize('admin'),
   async (req, res) => {
     try {
       const organization = await Organization.findById(req.params.id);
 
       if (!organization) {
-        return res.status(404).json({ message: 'Organization not found' });
+        return res.status(404).json({
+          success: false,
+          message: 'Organization not found'
+        });
       }
 
-      // Get statistics
-      const statistics = await organization.getStatistics();
+      // Remove member
+      organization.members = organization.members.filter(
+        m => m.user.toString() !== req.params.userId
+      );
 
-      res.json({ statistics });
-    } catch (error) {
-      console.error('Get statistics error:', error);
-      res.status(500).json({ message: 'Error fetching statistics' });
-    }
-});
+      await organization.save();
 
-/**
- * @route GET /api/organizations/user
- * @desc Get organizations for the current user
- * @access Private
- */
-router.get('/user',
-  auth,
-  async (req, res) => {
-    try {
-      const organizations = await Organization.find({
-        'members.user': req.user._id
-      }, 'name code type status');
-
-      res.json(organizations);
-    } catch (error) {
-      console.error('Get user organizations error:', error);
-      res.status(500).json({ message: 'Error fetching user organizations' });
-    }
-});
-
-/**
- * @route GET /api/organizations/user/list
- * @desc Get organizations for the current user
- * @access Private
- */
-router.get('/user/list', auth, async (req, res) => {
-  try {
-    // Get organizations where the user is a member
-    const organizations = await Organization.find({
-      'members.user': req.user._id,
-      status: 'active'
-    })
-    .populate('members.user', 'firstName lastName email')
-    .lean()
-    .exec();
-
-    res.json({
-      success: true,
-      organizations
-    });
-  } catch (error) {
-    console.error('Get user organizations error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Error fetching user organizations' 
-    });
-  }
-});
-
-/**
- * @route POST /api/organizations/switch
- * @desc Switch current organization
- * @access Private
- */
-router.post('/switch',
-  auth,
-  organizationValidation.switch,
-  async (req, res) => {
-    try {
-      const { organizationId } = req.body;
-
-      const organization = await Organization.findOne({
-        _id: organizationId,
-        'members.user': req.user._id
+      res.json({
+        success: true,
+        message: 'Member removed successfully'
       });
+    } catch (error) {
+      console.error('Remove member error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error removing member'
+      });
+    }
+});
+
+/**
+ * @route PUT /api/organizations/:id/members/:userId
+ * @desc Update member role
+ * @access Private (Admin)
+ */
+router.put('/:id/members/:userId',
+  auth,
+  authorize('admin'),
+  organizationValidation.updateMember,
+  async (req, res) => {
+    try {
+      const { role } = req.body;
+      const organization = await Organization.findById(req.params.id);
 
       if (!organization) {
-        return res.status(404).json({ message: 'Organization not found or access denied' });
+        return res.status(404).json({
+          success: false,
+          message: 'Organization not found'
+        });
       }
 
-      // Update user's current organization
-      await User.findByIdAndUpdate(req.user._id, {
-        currentOrganization: organizationId
-      });
+      // Update member role
+      const member = organization.members.find(
+        m => m.user.toString() === req.params.userId
+      );
 
-      res.json({ 
-        message: 'Organization switched successfully',
-        organization 
+      if (!member) {
+        return res.status(404).json({
+          success: false,
+          message: 'Member not found'
+        });
+      }
+
+      member.role = role;
+      await organization.save();
+
+      res.json({
+        success: true,
+        message: 'Member role updated successfully',
+        member: {
+          _id: req.params.userId,
+          role
+        }
       });
     } catch (error) {
-      console.error('Switch organization error:', error);
-      res.status(500).json({ message: 'Error switching organization' });
+      console.error('Update member role error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error updating member role'
+      });
     }
 });
 

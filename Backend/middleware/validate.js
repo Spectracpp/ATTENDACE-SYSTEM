@@ -18,12 +18,11 @@ const handleValidation = (req, res, next) => {
       return `${field}: ${messages.join(', ')}`;
     });
 
-    return res.status(400).json({ 
+    return res.status(400).json({
       success: false,
-      message: "Validation failed",
+      message: 'Validation failed',
       errors: groupedErrors,
-      errorMessages,
-      invalidFields: Object.keys(groupedErrors)
+      errorSummary: errorMessages.join('; ')
     });
   }
   next();
@@ -33,65 +32,88 @@ const handleValidation = (req, res, next) => {
 const userValidation = {
   create: [
     body('email')
-      .notEmpty().withMessage('Email is required')
-      .isEmail().withMessage('Invalid email format')
+      .trim()
+      .isEmail()
+      .withMessage('Invalid email address')
       .normalizeEmail(),
     body('password')
-      .notEmpty().withMessage('Password is required')
-      .isLength({ min: 8 }).withMessage('Password must be at least 8 characters long')
-      .matches(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9]).{8,}$/)
-      .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
+      .isLength({ min: 8 })
+      .withMessage('Password must be at least 8 characters long')
+      .matches(/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]/)
+      .withMessage('Password must contain at least one letter and one number'),
     body('firstName')
-      .notEmpty().withMessage('First name is required')
-      .trim(),
+      .trim()
+      .notEmpty()
+      .withMessage('First name is required')
+      .isLength({ min: 2, max: 50 })
+      .withMessage('First name must be between 2 and 50 characters'),
     body('lastName')
-      .notEmpty().withMessage('Last name is required')
-      .trim(),
+      .trim()
+      .notEmpty()
+      .withMessage('Last name is required')
+      .isLength({ min: 2, max: 50 })
+      .withMessage('Last name must be between 2 and 50 characters'),
     handleValidation
   ],
   login: [
     body('email')
-      .notEmpty().withMessage('Email is required')
-      .isEmail().withMessage('Invalid email format')
+      .trim()
+      .isEmail()
+      .withMessage('Invalid email address')
       .normalizeEmail(),
     body('password')
-      .notEmpty().withMessage('Password is required'),
+      .notEmpty()
+      .withMessage('Password is required'),
     handleValidation
   ],
   update: [
     body('firstName')
       .optional()
-      .notEmpty().withMessage('First name cannot be empty')
-      .trim(),
+      .trim()
+      .isLength({ min: 2, max: 50 })
+      .withMessage('First name must be between 2 and 50 characters'),
     body('lastName')
       .optional()
-      .notEmpty().withMessage('Last name cannot be empty')
-      .trim(),
+      .trim()
+      .isLength({ min: 2, max: 50 })
+      .withMessage('Last name must be between 2 and 50 characters'),
+    body('email')
+      .optional()
+      .trim()
+      .isEmail()
+      .withMessage('Invalid email address')
+      .normalizeEmail(),
     handleValidation
   ],
   changePassword: [
     body('currentPassword')
-      .notEmpty().withMessage('Current password is required'),
+      .notEmpty()
+      .withMessage('Current password is required'),
     body('newPassword')
-      .notEmpty().withMessage('New password is required')
-      .isLength({ min: 8 }).withMessage('New password must be at least 8 characters long')
-      .matches(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9]).{8,}$/)
-      .withMessage('New password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
+      .notEmpty()
+      .withMessage('New password is required')
+      .isLength({ min: 8 })
+      .withMessage('New password must be at least 8 characters long')
+      .matches(/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]/)
+      .withMessage('New password must contain at least one letter and one number'),
     handleValidation
   ],
   forgotPassword: [
     body('email')
-      .notEmpty().withMessage('Email is required')
-      .isEmail().withMessage('Invalid email format')
+      .trim()
+      .isEmail()
+      .withMessage('Invalid email address')
       .normalizeEmail(),
     handleValidation
   ],
   resetPassword: [
     body('password')
-      .notEmpty().withMessage('Password is required')
-      .isLength({ min: 8 }).withMessage('Password must be at least 8 characters long')
-      .matches(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[^a-zA-Z0-9]).{8,}$/)
-      .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
+      .notEmpty()
+      .withMessage('Password is required')
+      .isLength({ min: 8 })
+      .withMessage('Password must be at least 8 characters long')
+      .matches(/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]/)
+      .withMessage('Password must contain at least one letter and one number'),
     handleValidation
   ]
 };
@@ -100,49 +122,68 @@ const userValidation = {
 const organizationValidation = {
   create: [
     body('name')
-      .notEmpty().withMessage('Organization name is required')
-      .trim().isLength({ min: 2, max: 100 }),
-    body('code')
-      .notEmpty().withMessage('Organization code is required')
-      .trim().isLength({ min: 2, max: 20 })
-      .matches(/^[A-Z0-9-]+$/).withMessage('Invalid organization code format'),
-    body('type')
+      .trim()
+      .notEmpty()
+      .withMessage('Organization name is required')
+      .isLength({ min: 2, max: 100 })
+      .withMessage('Organization name must be between 2 and 100 characters'),
+    body('description')
       .optional()
-      .isIn(['business', 'education', 'government', 'other']).withMessage('Invalid organization type'),
+      .trim()
+      .isLength({ max: 500 })
+      .withMessage('Description cannot exceed 500 characters'),
+    body('type')
+      .trim()
+      .notEmpty()
+      .withMessage('Organization type is required')
+      .isIn(['business', 'education', 'nonprofit', 'other'])
+      .withMessage('Invalid organization type'),
     handleValidation
   ],
   update: [
     body('name')
       .optional()
-      .notEmpty().withMessage('Organization name cannot be empty')
-      .trim().isLength({ min: 2, max: 100 }),
-    body('code')
+      .trim()
+      .isLength({ min: 2, max: 100 })
+      .withMessage('Organization name must be between 2 and 100 characters'),
+    body('description')
       .optional()
-      .notEmpty().withMessage('Organization code cannot be empty')
-      .trim().isLength({ min: 2, max: 20 })
-      .matches(/^[A-Z0-9-]+$/).withMessage('Invalid organization code format'),
+      .trim()
+      .isLength({ max: 500 })
+      .withMessage('Description cannot exceed 500 characters'),
     body('type')
       .optional()
-      .isIn(['business', 'education', 'government', 'other']).withMessage('Invalid organization type'),
+      .trim()
+      .isIn(['business', 'education', 'nonprofit', 'other'])
+      .withMessage('Invalid organization type'),
     handleValidation
   ],
   addMember: [
-    body('email')
-      .notEmpty().withMessage('Email is required')
-      .isEmail().withMessage('Invalid email format')
-      .normalizeEmail(),
+    body('userId')
+      .trim()
+      .notEmpty()
+      .withMessage('User ID is required')
+      .isMongoId()
+      .withMessage('Invalid user ID format'),
     body('role')
-      .isIn(['admin', 'manager', 'user']).withMessage('Invalid role'),
+      .optional()
+      .trim()
+      .isIn(['admin', 'member'])
+      .withMessage('Invalid role. Must be either admin or member'),
     handleValidation
   ],
   updateMember: [
     body('role')
-      .isIn(['admin', 'manager', 'user']).withMessage('Invalid role'),
+      .optional()
+      .trim()
+      .isIn(['admin', 'member'])
+      .withMessage('Invalid role. Must be either admin or member'),
     handleValidation
   ],
   switch: [
     body('organizationId')
-      .isMongoId().withMessage('Invalid organization ID'),
+      .isMongoId()
+      .withMessage('Invalid organization ID'),
     handleValidation
   ]
 };
@@ -151,39 +192,73 @@ const organizationValidation = {
 const qrCodeValidation = {
   generate: [
     body('type')
-      .isIn(['daily', 'meeting', 'event']).withMessage('Invalid QR code type'),
+      .trim()
+      .notEmpty()
+      .withMessage('QR code type is required')
+      .isIn(['attendance', 'event'])
+      .withMessage('Invalid QR code type'),
+    body('organizationId')
+      .trim()
+      .notEmpty()
+      .withMessage('Organization ID is required')
+      .isMongoId()
+      .withMessage('Invalid organization ID format'),
     body('validityHours')
       .optional()
-      .isInt({ min: 1, max: 72 }).withMessage('Invalid validity hours'),
+      .isInt({ min: 1, max: 24 })
+      .withMessage('Validity hours must be between 1 and 24'),
     body('location')
       .optional()
-      .isObject().withMessage('Location must be an object'),
-    body('location.latitude')
-      .optional()
-      .isFloat({ min: -90, max: 90 }).withMessage('Invalid latitude'),
-    body('location.longitude')
-      .optional()
-      .isFloat({ min: -180, max: 180 }).withMessage('Invalid longitude'),
-    body('settings')
-      .optional()
-      .isObject().withMessage('Settings must be an object'),
-    body('settings.maxDistance')
-      .optional()
-      .isInt({ min: 10, max: 1000 }).withMessage('Invalid max distance'),
+      .isObject()
+      .withMessage('Location must be an object')
+      .custom((value) => {
+        if (value && (!value.latitude || !value.longitude)) {
+          throw new Error('Location must include latitude and longitude');
+        }
+        if (value) {
+          const { latitude, longitude } = value;
+          if (latitude < -90 || latitude > 90) {
+            throw new Error('Latitude must be between -90 and 90');
+          }
+          if (longitude < -180 || longitude > 180) {
+            throw new Error('Longitude must be between -180 and 180');
+          }
+        }
+        return true;
+      }),
     handleValidation
   ],
   scan: [
     body('qrData')
-      .notEmpty().withMessage('QR data is required'),
+      .trim()
+      .notEmpty()
+      .withMessage('QR code data is required'),
     body('location')
       .optional()
-      .isObject().withMessage('Location must be an object'),
-    body('location.latitude')
-      .optional()
-      .isFloat({ min: -90, max: 90 }).withMessage('Invalid latitude'),
-    body('location.longitude')
-      .optional()
-      .isFloat({ min: -180, max: 180 }).withMessage('Invalid longitude'),
+      .isObject()
+      .withMessage('Location must be an object')
+      .custom((value) => {
+        if (value && (!value.latitude || !value.longitude)) {
+          throw new Error('Location must include latitude and longitude');
+        }
+        if (value) {
+          const { latitude, longitude } = value;
+          if (latitude < -90 || latitude > 90) {
+            throw new Error('Latitude must be between -90 and 90');
+          }
+          if (longitude < -180 || longitude > 180) {
+            throw new Error('Longitude must be between -180 and 180');
+          }
+        }
+        return true;
+      }),
+    handleValidation
+  ],
+  validate: [
+    body('code')
+      .trim()
+      .notEmpty()
+      .withMessage('QR code is required'),
     handleValidation
   ]
 };
@@ -193,28 +268,43 @@ const attendanceValidation = {
   fetch: [
     query('startDate')
       .optional()
-      .isISO8601().withMessage('Invalid start date format'),
+      .isISO8601()
+      .withMessage('Invalid start date format'),
     query('endDate')
       .optional()
-      .isISO8601().withMessage('Invalid end date format'),
-    query('userId')
-      .optional()
-      .isMongoId().withMessage('Invalid user ID'),
+      .isISO8601()
+      .withMessage('Invalid end date format')
+      .custom((value, { req }) => {
+        if (value && req.query.startDate && new Date(value) < new Date(req.query.startDate)) {
+          throw new Error('End date must be after start date');
+        }
+        return true;
+      }),
     handleValidation
   ],
   mark: [
-    body('status')
-      .optional()
-      .isIn(['present', 'late', 'absent', 'excused']).withMessage('Invalid attendance status'),
+    body('type')
+      .trim()
+      .notEmpty()
+      .withMessage('Attendance type is required')
+      .isIn(['check-in', 'check-out'])
+      .withMessage('Invalid attendance type'),
     body('location')
       .optional()
-      .isObject().withMessage('Location must be an object'),
-    body('location.latitude')
-      .optional()
-      .isFloat({ min: -90, max: 90 }).withMessage('Invalid latitude'),
-    body('location.longitude')
-      .optional()
-      .isFloat({ min: -180, max: 180 }).withMessage('Invalid longitude'),
+      .isObject()
+      .withMessage('Location must be an object')
+      .custom((value) => {
+        if (value && (!value.latitude || !value.longitude)) {
+          throw new Error('Location must include latitude and longitude');
+        }
+        return true;
+      }),
+    param('organizationId')
+      .trim()
+      .notEmpty()
+      .withMessage('Organization ID is required')
+      .isMongoId()
+      .withMessage('Invalid organization ID format'),
     handleValidation
   ]
 };
@@ -223,5 +313,6 @@ module.exports = {
   userValidation,
   organizationValidation,
   qrCodeValidation,
-  attendanceValidation
+  attendanceValidation,
+  handleValidation
 };

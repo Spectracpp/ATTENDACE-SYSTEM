@@ -2,57 +2,93 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
     try {
-        const conn = await mongoose.connect(process.env.MONGODB_URI, {
+        // Configure Mongoose
+        mongoose.set('debug', process.env.NODE_ENV === 'development');
+        
+        // Connection options
+        const options = {
             useNewUrlParser: true,
             useUnifiedTopology: true,
             autoIndex: true,
             maxPoolSize: 10,
             serverSelectionTimeoutMS: 5000,
             socketTimeoutMS: 45000,
-            family: 4
-        });
+            family: 4,
+            heartbeatFrequencyMS: 10000,
+            retryWrites: true,
+            w: 'majority'
+        };
 
+        // Connect to MongoDB
+        const conn = await mongoose.connect(process.env.MONGODB_URI, options);
         console.log(`MongoDB Connected: ${conn.connection.host}`);
         
-        // Manage indexes
-        try {
-            const User = require('../models/User');
-            
-            // Get existing indexes
-            const existingIndexes = await User.collection.indexes();
-            console.log('Current indexes:', existingIndexes);
-            
-            // Drop non-_id indexes
-            if (existingIndexes.length > 1) {
-                await User.collection.dropIndexes();
-                console.log('Dropped existing indexes');
-            }
-            
-            // Create new indexes
-            await User.init(); // This ensures indexes are created based on schema
-            console.log('Created new indexes successfully');
-            
-            // Verify new indexes
-            const newIndexes = await User.collection.indexes();
-            console.log('New indexes:', newIndexes);
-            
-        } catch (err) {
-            console.error('Error managing indexes:', err.message);
-            // Don't exit process, just log the error
-        }
-        
-        // Set up event listeners
-        mongoose.connection.on('error', (err) => {
+        // Set up connection error handlers
+        mongoose.connection.on('error', err => {
             console.error('MongoDB connection error:', err);
         });
 
         mongoose.connection.on('disconnected', () => {
-            console.log('MongoDB disconnected');
+            console.warn('MongoDB disconnected. Attempting to reconnect...');
         });
 
+        mongoose.connection.on('reconnected', () => {
+            console.log('MongoDB reconnected');
+        });
+
+        // Handle process termination
+        process.on('SIGINT', async () => {
+            try {
+                await mongoose.connection.close();
+                console.log('MongoDB connection closed through app termination');
+                process.exit(0);
+            } catch (err) {
+                console.error('Error closing MongoDB connection:', err);
+                process.exit(1);
+            }
+        });
+        
+        // Manage indexes
+        try {
+            const models = [
+                require('../models/User'),
+                require('../models/Admin'),
+                require('../models/Organization'),
+                require('../models/QRCode'),
+                require('../models/Attendance'),
+                require('../models/SystemLog')
+            ];
+
+            // Create indexes for each model
+            for (const Model of models) {
+                const modelName = Model.modelName;
+                console.log(`Creating indexes for ${modelName}...`);
+                
+                try {
+                    await Model.syncIndexes();
+                    console.log(`Indexes synchronized for ${modelName}`);
+                } catch (indexErr) {
+                    console.error(`Error creating indexes for ${modelName}:`, indexErr);
+                }
+            }
+        } catch (indexError) {
+            console.error('Error managing indexes:', indexError);
+            // Don't throw here, just log the error
+        }
+
+        return conn;
     } catch (error) {
-        console.error(`Error: ${error.message}`);
-        process.exit(1);
+        console.error('MongoDB connection error:', error);
+        
+        // Specific error handling
+        if (error.name === 'MongoServerSelectionError') {
+            console.error('Could not connect to MongoDB server. Please check if MongoDB is running.');
+        } else if (error.name === 'MongoParseError') {
+            console.error('Invalid MongoDB connection string.');
+        }
+        
+        // Rethrow the error for the calling code to handle
+        throw error;
     }
 };
 

@@ -187,14 +187,18 @@ const userSchema = new mongoose.Schema({
 });
 
 // Add compound unique index for studentId and organizationName
-userSchema.index({ studentId: 1, organizationName: 1, role: 1 }, { 
-  unique: true,
-  partialFilterExpression: { 
-    role: 'user',
-    studentId: { $exists: true, $ne: null },
-    organizationName: { $exists: true, $ne: null }
+userSchema.index(
+  { studentId: 1, organizationName: 1 },
+  { 
+    unique: true,
+    partialFilterExpression: { 
+      role: "user",
+      studentId: { $exists: true },
+      organizationName: { $exists: true }
+    },
+    background: true
   }
-});
+);
 
 // Add single field indexes
 userSchema.index({ email: 1 }, { unique: true });

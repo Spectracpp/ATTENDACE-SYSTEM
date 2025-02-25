@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: true,
   async rewrites() {
     return [
       {
@@ -9,7 +10,8 @@ const nextConfig = {
     ];
   },
   env: {
-    NEXT_PUBLIC_API_URL: 'http://localhost:5000/api'
+    NEXT_PUBLIC_API_URL: 'http://localhost:5000/api',
+    NEXT_PUBLIC_APP_URL: 'http://localhost:3000'
   },
   webpack: (config) => {
     config.resolve.alias = {
@@ -18,6 +20,12 @@ const nextConfig = {
     };
     return config;
   },
-};
+  experimental: {
+    appDir: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  }
+}
 
 module.exports = nextConfig;

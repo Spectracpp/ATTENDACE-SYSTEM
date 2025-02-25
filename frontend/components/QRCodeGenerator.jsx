@@ -5,23 +5,30 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { FaDownload, FaSync, FaClock } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import useGeolocation from '@/hooks/useGeolocation';
+import OrganizationSelect from './Organization/OrganizationSelect';
 
-export default function QRCodeGenerator({ organizationId }) {
+export default function QRCodeGenerator() {
   const [qrValue, setQrValue] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [validityMinutes, setValidityMinutes] = useState(15);
   const [loading, setLoading] = useState(false);
+  const [selectedOrganization, setSelectedOrganization] = useState('');
   const { location, error: locationError } = useGeolocation();
 
   useEffect(() => {
-    if (organizationId) {
+    if (selectedOrganization) {
       generateQRCode();
     }
-  }, [organizationId, refreshKey]);
+  }, [selectedOrganization, refreshKey]);
 
   const generateQRCode = async () => {
     if (!location) {
       toast.error('Please enable location services to generate QR code');
+      return;
+    }
+
+    if (!selectedOrganization) {
+      toast.error('Please select an organization');
       return;
     }
 
@@ -34,7 +41,7 @@ export default function QRCodeGenerator({ organizationId }) {
         },
         credentials: 'include',
         body: JSON.stringify({
-          organizationId,
+          organizationId: selectedOrganization,
           validityMinutes,
           location: {
             type: 'Point',
@@ -76,17 +83,17 @@ export default function QRCodeGenerator({ organizationId }) {
     document.body.removeChild(downloadLink);
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center p-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col items-center space-y-4">
       <div className="w-full max-w-md">
+        <div className="mb-4">
+          <OrganizationSelect
+            value={selectedOrganization}
+            onChange={setSelectedOrganization}
+            className="w-full"
+          />
+        </div>
+        
         <div className="flex items-center gap-4 mb-4">
           <FaClock className="text-gray-500" />
           <input
@@ -99,38 +106,37 @@ export default function QRCodeGenerator({ organizationId }) {
           />
           <span className="text-gray-500">minutes validity</span>
         </div>
-      </div>
 
-      {qrValue && (
-        <>
-          <div className="p-4 bg-white rounded-lg shadow-lg">
+        {qrValue && (
+          <div className="flex flex-col items-center space-y-4 p-4 border rounded-lg">
             <QRCodeCanvas
               id="qr-code"
               value={qrValue}
               size={256}
               level="H"
               includeMargin={true}
+              className="bg-white p-2"
             />
+            <div className="flex gap-4">
+              <button
+                onClick={handleRefresh}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                disabled={loading}
+              >
+                <FaSync className={loading ? 'animate-spin' : ''} />
+                Refresh
+              </button>
+              <button
+                onClick={handleDownload}
+                className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+              >
+                <FaDownload />
+                Download
+              </button>
+            </div>
           </div>
-
-          <div className="flex space-x-4">
-            <button
-              onClick={handleRefresh}
-              className="flex items-center px-4 py-2 text-sm font-medium text-black bg-[#00f2ea] rounded-lg hover:bg-[#00d8d8] transition-colors"
-            >
-              <FaSync className="mr-2" />
-              Refresh
-            </button>
-            <button
-              onClick={handleDownload}
-              className="flex items-center px-4 py-2 text-sm font-medium text-black bg-[#00f2ea] rounded-lg hover:bg-[#00d8d8] transition-colors"
-            >
-              <FaDownload className="mr-2" />
-              Download
-            </button>
-          </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 }

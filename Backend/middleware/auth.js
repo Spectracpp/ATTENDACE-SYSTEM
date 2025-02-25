@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Admin = require('../models/Admin');
 
 // List of public routes that don't require authentication
 const publicRoutes = [
@@ -9,75 +10,129 @@ const publicRoutes = [
   '/api/auth/request-password-reset',
   '/api/auth/reset-password',
   '/api/auth/check-token',
-  '/health'
+  '/api/health-check',
+  '/health',
+  // Add OPTIONS for CORS preflight
+  '/api/auth/register OPTIONS',
+  '/api/auth/login OPTIONS',
+  '/api/auth/verify-email OPTIONS',
+  '/api/auth/request-password-reset OPTIONS',
+  '/api/auth/reset-password OPTIONS',
+  '/api/auth/check-token OPTIONS',
+  '/api/health-check OPTIONS',
+  '/health OPTIONS'
 ];
+
+const extractToken = (req) => {
+  // First try to get token from Authorization header
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.split(' ')[1];
+  }
+  
+  // Then try to get token from cookies
+  if (req.cookies && req.cookies.token) {
+    return req.cookies.token;
+  }
+  
+  return null;
+};
 
 // Auth middleware
 const auth = async (req, res, next) => {
   try {
+    // Log request details for debugging
+    console.log('Auth middleware:', {
+      path: req.path,
+      method: req.method,
+      headers: req.headers,
+      cookies: req.cookies
+    });
+
     // Check if the route is public
-    const isPublicRoute = publicRoutes.some(route => 
-      req.path.toLowerCase().endsWith(route.toLowerCase())
-    );
+    const isPublicRoute = publicRoutes.some(route => {
+      const [routePath, routeMethod] = route.split(' ');
+      return req.path.toLowerCase().endsWith(routePath.toLowerCase()) && 
+             (!routeMethod || req.method === routeMethod);
+    });
     
     if (isPublicRoute) {
       return next();
     }
 
-    // Get token from header
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+      return next();
+    }
+
+    // Get token
+    const token = extractToken(req);
+    if (!token) {
+      console.log('No token found');
       return res.status(401).json({
         success: false,
-        message: 'No token found'
+        message: 'Authentication required. Please login.'
       });
     }
 
-    const token = authHeader.split(' ')[1];
-    
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Get user from database
-    const user = await User.findById(decoded.id || decoded.userId).select('-password');
-    
-    if (!user) {
-      return res.status(401).json({ message: 'User not found' });
+    console.log('Token decoded:', decoded);
+
+    if (!decoded.user || !decoded.user.id) {
+      throw new Error('Invalid token format - no user ID found');
     }
 
-    // Add user to request
-    req.user = user;
-    req.token = token;
-    
+    // Get user from database
+    const user = await User.findById(decoded.user.id)
+      .select('-password')
+      .lean();
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'Account is inactive'
+      });
+    }
+
+    // Add user info to request
+    req.user = {
+      ...user,
+      id: user._id,
+      role: decoded.user.role
+    };
+
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
+
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({
         success: false,
         message: 'Invalid token'
       });
     }
-    return res.status(500).json({
+
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Token expired'
+      });
+    }
+
+    res.status(500).json({
       success: false,
-      message: 'Server error during authentication'
+      message: 'Authentication failed'
     });
   }
 };
 
-// Role-based authorization middleware
-const authorize = (roles = []) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ message: 'User not authenticated' });
-    }
-
-    if (roles.length && !roles.includes(req.user.role)) {
-      return res.status(403).json({ message: 'User not authorized' });
-    }
-
-    next();
-  };
-};
-
-module.exports = { auth, authorize };
+module.exports = { auth, extractToken };
