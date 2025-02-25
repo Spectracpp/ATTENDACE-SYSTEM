@@ -11,14 +11,18 @@ import {
   AcademicCapIcon,
   BuildingOffice2Icon as BuildingOfficeIcon,
   IdentificationIcon,
+  ClockIcon,
+  BuildingLibraryIcon,
 } from '@heroicons/react/24/outline';
 import { LogoWithText } from '@/components/Logo';
 import Link from 'next/link';
 import SelectField from '@/components/common/SelectField';
 import { courses, departments, semesters } from '@/data/formOptions';
+import { useOrganizations } from '@/hooks/useOrganizations';
 
 export default function UserRegister() {
   const router = useRouter();
+  const { organizations, loading: loadingOrgs } = useOrganizations();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -31,14 +35,26 @@ export default function UserRegister() {
     course: '',
     semester: '',
     department: '',
-    organizationName: ''
+    organizationId: '',
+    organizationCode: ''
   });
 
   const [errors, setErrors] = useState({});
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      // If organization is selected, auto-fill the organization code
+      if (name === 'organizationId') {
+        const selectedOrg = organizations.find(org => org._id === value);
+        return {
+          ...prev,
+          [name]: value,
+          organizationCode: selectedOrg ? selectedOrg.code : ''
+        };
+      }
+      return { ...prev, [name]: value };
+    });
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
@@ -95,9 +111,14 @@ export default function UserRegister() {
       newErrors.department = 'Department is required';
     }
 
-    // Organization Name validation
-    if (!formData.organizationName.trim()) {
-      newErrors.organizationName = 'Organization Name is required';
+    // Organization validation
+    if (!formData.organizationId) {
+      newErrors.organizationId = 'Organization is required';
+    }
+
+    // Organization Code validation
+    if (!formData.organizationCode.trim()) {
+      newErrors.organizationCode = 'Organization Code is required';
     }
 
     // Password validation (at least 6 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char)
@@ -133,7 +154,7 @@ export default function UserRegister() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           email: formData.email,
-          organizationName: formData.organizationName 
+          organizationId: formData.organizationId 
         }),
       });
 
@@ -286,42 +307,50 @@ export default function UserRegister() {
                   {errors.phone && <p className={errorClasses}>{errors.phone}</p>}
                 </div>
 
-                {/* Student ID Input */}
+                {/* Organization Selection */}
                 <div>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <IdentificationIcon className={iconClasses} />
+                      <BuildingOfficeIcon className={iconClasses} />
                     </div>
-                    <input
-                      type="text"
-                      name="studentId"
-                      value={formData.studentId}
+                    <select
+                      required
+                      name="organizationId"
+                      value={formData.organizationId}
                       onChange={handleChange}
-                      placeholder="Student ID"
-                      className={`${inputBaseClasses} ${errors.studentId ? 'border-red-500' : ''}`}
-                      disabled={isLoading}
-                    />
+                      className={`${inputBaseClasses} ${errors.organizationId ? 'border-red-500' : ''}`}
+                      disabled={loadingOrgs || isLoading}
+                    >
+                      <option value="">Select Organization</option>
+                      {organizations.map((org) => (
+                        <option key={org._id} value={org._id}>
+                          {org.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  {errors.studentId && <p className={errorClasses}>{errors.studentId}</p>}
+                  {errors.organizationId && <p className={errorClasses}>{errors.organizationId}</p>}
                 </div>
 
-                {/* Organization Name Input */}
+                {/* Organization Code Input */}
                 <div>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <IdentificationIcon className={iconClasses} />
+                      <KeyIcon className={iconClasses} />
                     </div>
                     <input
                       type="text"
-                      name="organizationName"
-                      value={formData.organizationName}
+                      required
+                      name="organizationCode"
+                      value={formData.organizationCode}
                       onChange={handleChange}
-                      placeholder="Organization Name"
-                      className={`${inputBaseClasses} ${errors.organizationName ? 'border-red-500' : ''}`}
+                      placeholder="Organization code"
+                      className={`${inputBaseClasses} ${errors.organizationCode ? 'border-red-500' : ''}`}
                       disabled={isLoading}
+                      readOnly
                     />
                   </div>
-                  {errors.organizationName && <p className={errorClasses}>{errors.organizationName}</p>}
+                  {errors.organizationCode && <p className={errorClasses}>{errors.organizationCode}</p>}
                 </div>
 
                 {/* Password Input */}
@@ -332,6 +361,7 @@ export default function UserRegister() {
                     </div>
                     <input
                       type="password"
+                      required
                       name="password"
                       value={formData.password}
                       onChange={handleChange}
@@ -351,6 +381,7 @@ export default function UserRegister() {
                     </div>
                     <input
                       type="password"
+                      required
                       name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={handleChange}
@@ -367,35 +398,100 @@ export default function UserRegister() {
               <div className="space-y-4">
                 <h2 className="text-xl font-semibold mb-4 cyberpunk-text-gradient">Academic Information</h2>
                 
-                {/* Course Select */}
-                <SelectField
-                  value={formData.course}
-                  onChange={(value) => handleChange({ target: { name: 'course', value } })}
-                  options={courses}
-                  placeholder="Select Course"
-                  icon={AcademicCapIcon}
-                  error={errors.course}
-                />
+                {/* Course Selection */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <AcademicCapIcon className={iconClasses} />
+                    </div>
+                    <select
+                      required
+                      name="course"
+                      value={formData.course}
+                      onChange={handleChange}
+                      className={`${inputBaseClasses} ${errors.course ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                    >
+                      <option value="">Select Course</option>
+                      {courses.map((course) => (
+                        <option key={course.id} value={course.id}>
+                          {course.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {errors.course && <p className={errorClasses}>{errors.course}</p>}
+                </div>
 
-                {/* Semester Select */}
-                <SelectField
-                  value={formData.semester}
-                  onChange={(value) => handleChange({ target: { name: 'semester', value } })}
-                  options={semesters.map(sem => `Semester ${sem}`)}
-                  placeholder="Select Semester"
-                  icon={AcademicCapIcon}
-                  error={errors.semester}
-                />
+                {/* Semester Selection */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <ClockIcon className={iconClasses} />
+                    </div>
+                    <select
+                      required
+                      name="semester"
+                      value={formData.semester}
+                      onChange={handleChange}
+                      className={`${inputBaseClasses} ${errors.semester ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                    >
+                      <option value="">Select Semester</option>
+                      {semesters.map((semester) => (
+                        <option key={semester.id} value={semester.id}>
+                          {semester.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {errors.semester && <p className={errorClasses}>{errors.semester}</p>}
+                </div>
 
-                {/* Department Select */}
-                <SelectField
-                  value={formData.department}
-                  onChange={(value) => handleChange({ target: { name: 'department', value } })}
-                  options={departments}
-                  placeholder="Select Department"
-                  icon={BuildingOfficeIcon}
-                  error={errors.department}
-                />
+                {/* Department Selection */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <BuildingLibraryIcon className={iconClasses} />
+                    </div>
+                    <select
+                      required
+                      name="department"
+                      value={formData.department}
+                      onChange={handleChange}
+                      className={`${inputBaseClasses} ${errors.department ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                    >
+                      <option value="">Select Department</option>
+                      {departments.map((department) => (
+                        <option key={department.id} value={department.id}>
+                          {department.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {errors.department && <p className={errorClasses}>{errors.department}</p>}
+                </div>
+
+                {/* Student ID Input */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <IdentificationIcon className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      name="studentId"
+                      value={formData.studentId}
+                      onChange={handleChange}
+                      placeholder="Student ID"
+                      className={`${inputBaseClasses} ${errors.studentId ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {errors.studentId && <p className={errorClasses}>{errors.studentId}</p>}
+                </div>
               </div>
             </div>
 

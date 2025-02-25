@@ -8,6 +8,29 @@ const { authorize } = require('../middleware/organization');
 const { organizationValidation } = require('../middleware/validate');
 const { rateLimiter } = require('../middleware/rateLimiter');
 
+// Public endpoint - must be before auth middleware
+router.get('/public', async (req, res) => {
+  try {
+    const organizations = await Organization.find({ status: 'active' })
+      .select('name code type')
+      .sort('name');
+    
+    res.json({
+      success: true,
+      organizations
+    });
+  } catch (error) {
+    console.error('Error fetching organizations:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch organizations'
+    });
+  }
+});
+
+// Auth middleware for protected routes
+router.use(auth);
+
 /**
  * @route GET /api/organizations
  * @desc Get all organizations (public)
@@ -44,7 +67,7 @@ router.get('/', async (req, res) => {
  * @desc Get user's organizations
  * @access Private
  */
-router.get('/my', auth, async (req, res) => {
+router.get('/my', async (req, res) => {
   try {
     const organizations = await Organization
       .find({ 'members.user': req.user._id })
@@ -76,7 +99,7 @@ router.get('/my', auth, async (req, res) => {
  * @desc Get organization by ID
  * @access Private
  */
-router.get('/:id', auth, async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const organization = await Organization
       .findById(req.params.id)
@@ -120,7 +143,7 @@ router.get('/:id', auth, async (req, res) => {
  * @desc Create a new organization
  * @access Private
  */
-router.post('/', auth, async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { name, description, type } = req.body;
 
@@ -157,7 +180,7 @@ router.post('/', auth, async (req, res) => {
  * @desc Update organization
  * @access Private (Admin/Owner only)
  */
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const { name, description, type, settings } = req.body;
     const updates = {
@@ -203,7 +226,7 @@ router.put('/:id', auth, async (req, res) => {
  * @desc Delete organization (soft delete)
  * @access Private (Owner only)
  */
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const organization = await Organization.findOneAndUpdate(
       {
@@ -240,7 +263,7 @@ router.delete('/:id', auth, async (req, res) => {
  * @desc Add member to organization
  * @access Private (Admin/Owner only)
  */
-router.post('/:id/members', auth, async (req, res) => {
+router.post('/:id/members', async (req, res) => {
   try {
     const { userId, role = 'member' } = req.body;
 
@@ -288,7 +311,7 @@ router.post('/:id/members', auth, async (req, res) => {
  * @desc Remove member from organization
  * @access Private (Admin/Owner only)
  */
-router.delete('/:id/members/:userId', auth, async (req, res) => {
+router.delete('/:id/members/:userId', async (req, res) => {
   try {
     const organization = await Organization.findOneAndUpdate(
       {
@@ -329,7 +352,7 @@ router.delete('/:id/members/:userId', auth, async (req, res) => {
  * @desc Get organization members
  * @access Private
  */
-router.get('/:id/members', auth, async (req, res) => {
+router.get('/:id/members', async (req, res) => {
   try {
     const organization = await Organization
       .findById(req.params.id)
@@ -365,26 +388,6 @@ router.get('/:id/members', auth, async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: 'Error fetching members' 
-    });
-  }
-});
-
-// Get all organizations (public endpoint for registration)
-router.get('/public', async (req, res) => {
-  try {
-    const organizations = await Organization.find({ status: 'active' })
-      .select('name code type')
-      .sort('name');
-    
-    res.json({
-      success: true,
-      organizations
-    });
-  } catch (error) {
-    console.error('Error fetching organizations:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch organizations'
     });
   }
 });

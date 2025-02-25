@@ -1,56 +1,59 @@
 // Course options
 export const courses = [
-  'Computer Science',
-  'Information Technology',
-  'Electronics',
-  'Mechanical',
-  'Civil',
-  'Electrical'
+  { id: 'cs', name: 'Computer Science' },
+  { id: 'it', name: 'Information Technology' },
+  { id: 'ec', name: 'Electronics' },
+  { id: 'me', name: 'Mechanical' },
+  { id: 'ce', name: 'Civil' },
+  { id: 'ee', name: 'Electrical' }
 ];
 
 // Department options
 export const departments = [
-  'CSE',
-  'IT',
-  'ECE',
-  'ME',
-  'CE',
-  'EE'
+  { id: 'cse', name: 'CSE' },
+  { id: 'it', name: 'IT' },
+  { id: 'ece', name: 'ECE' },
+  { id: 'me', name: 'ME' },
+  { id: 'ce', name: 'CE' },
+  { id: 'ee', name: 'EE' }
 ];
 
 // Semester options
-export const semesters = Array.from({ length: 8 }, (_, i) => i + 1);
+export const semesters = Array.from({ length: 8 }, (_, i) => ({
+  id: `${i + 1}`,
+  name: `Semester ${i + 1}`
+}));
 
 export const roles = [
-  'Student',
-  'Faculty',
-  'Staff',
-  'Administrator',
+  { id: 'student', name: 'Student' },
+  { id: 'faculty', name: 'Faculty' },
+  { id: 'staff', name: 'Staff' },
+  { id: 'admin', name: 'Administrator' }
 ];
 
 export const genders = [
-  'Male',
-  'Female',
-  'Other',
-  'Prefer not to say',
+  { id: 'male', name: 'Male' },
+  { id: 'female', name: 'Female' },
+  { id: 'other', name: 'Other' },
+  { id: 'prefer_not_to_say', name: 'Prefer not to say' }
 ];
 
 export const years = [
-  'First Year',
-  'Second Year',
-  'Third Year',
-  'Fourth Year',
+  { id: '1', name: 'First Year' },
+  { id: '2', name: 'Second Year' },
+  { id: '3', name: 'Third Year' },
+  { id: '4', name: 'Fourth Year' }
 ];
 
 export const bloodGroups = [
-  'A+',
-  'A-',
-  'B+',
-  'B-',
-  'AB+',
-  'AB-',
-  'O+',
-  'O-',
+  { id: 'A+', name: 'A+' },
+  { id: 'A-', name: 'A-' },
+  { id: 'B+', name: 'B+' },
+  { id: 'B-', name: 'B-' },
+  { id: 'AB+', name: 'AB+' },
+  { id: 'AB-', name: 'AB-' },
+  { id: 'O+', name: 'O+' },
+  { id: 'O-', name: 'O-' }
 ];
 
 export const states = [

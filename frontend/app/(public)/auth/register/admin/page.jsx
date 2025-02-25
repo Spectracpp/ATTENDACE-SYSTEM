@@ -8,14 +8,19 @@ import {
   EnvelopeIcon,
   KeyIcon,
   BuildingOffice2Icon as BuildingOfficeIcon,
+  PhoneIcon,
+  IdentificationIcon,
+  AcademicCapIcon,
 } from '@heroicons/react/24/outline';
 import { LogoWithText } from '@/components/Logo';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrganizations } from '@/hooks/useOrganizations';
 
 export default function AdminRegister() {
   const router = useRouter();
   const { register } = useAuth();
+  const { organizations, loading: loadingOrgs } = useOrganizations();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -26,15 +31,31 @@ export default function AdminRegister() {
     employeeId: '',
     department: '',
     role: 'admin',
-    organizationName: '',
+    organizationId: '',
+    organizationCode: '',
     registrationCode: ''
   });
 
   const [errors, setErrors] = useState({});
 
+  const inputBaseClasses = "block w-full pl-11 pr-4 py-3 bg-black/50 backdrop-blur-xl border border-[#ff0080]/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-[#ff0080] focus:ring-1 focus:ring-[#ff0080] transition-colors";
+  const errorClasses = "mt-1 text-sm text-red-500";
+  const iconClasses = "h-5 w-5 text-[#ff0080]";
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      // If organization is selected, auto-fill the organization code
+      if (name === 'organizationId') {
+        const selectedOrg = organizations.find(org => org._id === value);
+        return {
+          ...prev,
+          [name]: value,
+          organizationCode: selectedOrg ? selectedOrg.code : ''
+        };
+      }
+      return { ...prev, [name]: value };
+    });
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
@@ -81,9 +102,14 @@ export default function AdminRegister() {
       newErrors.department = 'Department is required';
     }
 
-    // Organization Name validation
-    if (!formData.organizationName.trim()) {
-      newErrors.organizationName = 'Organization Name is required';
+    // Organization validation
+    if (!formData.organizationId) {
+      newErrors.organizationId = 'Organization is required';
+    }
+
+    // Organization Code validation
+    if (!formData.organizationCode.trim()) {
+      newErrors.organizationCode = 'Organization Code is required';
     }
 
     // Registration Code validation
@@ -124,7 +150,7 @@ export default function AdminRegister() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           email: formData.email,
-          organisation_uid: formData.organizationName 
+          organisation_uid: formData.organizationId 
         }),
       });
 
@@ -171,10 +197,6 @@ export default function AdminRegister() {
     }
   };
 
-  const inputBaseClasses = "block w-full pl-11 pr-4 py-3 bg-black/50 backdrop-blur-xl border border-[#ff0080]/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-[#ff0080] focus:ring-1 focus:ring-[#ff0080] transition-colors";
-  const errorClasses = "mt-1 text-sm text-red-500";
-  const iconClasses = "h-5 w-5 text-[#ff0080]";
-
   return (
     <div className="min-h-screen flex bg-black/90 relative">
       {/* Animated background */}
@@ -193,7 +215,7 @@ export default function AdminRegister() {
             <div className="text-sm text-gray-400">
               Already have an account?{' '}
               <Link 
-                href="/auth/login/admin" 
+                href="/auth/login" 
                 className="text-[#ff0080] hover:text-[#ff0080]/80 transition-colors"
               >
                 Sign In
@@ -228,6 +250,7 @@ export default function AdminRegister() {
                     </div>
                     <input
                       type="text"
+                      required
                       name="name"
                       value={formData.name}
                       onChange={handleChange}
@@ -247,6 +270,7 @@ export default function AdminRegister() {
                     </div>
                     <input
                       type="email"
+                      required
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
@@ -262,10 +286,11 @@ export default function AdminRegister() {
                 <div>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <UserIcon className={iconClasses} />
+                      <PhoneIcon className={iconClasses} />
                     </div>
                     <input
                       type="text"
+                      required
                       name="phone"
                       value={formData.phone}
                       onChange={handleChange}
@@ -285,6 +310,7 @@ export default function AdminRegister() {
                     </div>
                     <input
                       type="password"
+                      required
                       name="password"
                       value={formData.password}
                       onChange={handleChange}
@@ -304,6 +330,7 @@ export default function AdminRegister() {
                     </div>
                     <input
                       type="password"
+                      required
                       name="confirmPassword"
                       value={formData.confirmPassword}
                       onChange={handleChange}
@@ -320,14 +347,61 @@ export default function AdminRegister() {
               <div className="space-y-4">
                 <h2 className="text-xl font-semibold mb-4 cyberpunk-text-gradient">Organization Information</h2>
 
+                {/* Organization Selection */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <BuildingOfficeIcon className={iconClasses} />
+                    </div>
+                    <select
+                      required
+                      name="organizationId"
+                      value={formData.organizationId}
+                      onChange={handleChange}
+                      className={`${inputBaseClasses} ${errors.organizationId ? 'border-red-500' : ''}`}
+                      disabled={loadingOrgs || isLoading}
+                    >
+                      <option value="">Select Organization</option>
+                      {organizations.map((org) => (
+                        <option key={org._id} value={org._id}>
+                          {org.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {errors.organizationId && <p className={errorClasses}>{errors.organizationId}</p>}
+                </div>
+
+                {/* Organization Code Input */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <KeyIcon className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      name="organizationCode"
+                      value={formData.organizationCode}
+                      onChange={handleChange}
+                      placeholder="Organization code"
+                      className={`${inputBaseClasses} ${errors.organizationCode ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                      readOnly
+                    />
+                  </div>
+                  {errors.organizationCode && <p className={errorClasses}>{errors.organizationCode}</p>}
+                </div>
+
                 {/* Employee ID Input */}
                 <div>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <UserIcon className={iconClasses} />
+                      <IdentificationIcon className={iconClasses} />
                     </div>
                     <input
                       type="text"
+                      required
                       name="employeeId"
                       value={formData.employeeId}
                       onChange={handleChange}
@@ -343,10 +417,11 @@ export default function AdminRegister() {
                 <div>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <UserIcon className={iconClasses} />
+                      <AcademicCapIcon className={iconClasses} />
                     </div>
                     <input
                       type="text"
+                      required
                       name="department"
                       value={formData.department}
                       onChange={handleChange}
@@ -358,25 +433,6 @@ export default function AdminRegister() {
                   {errors.department && <p className={errorClasses}>{errors.department}</p>}
                 </div>
 
-                {/* Organization Name Input */}
-                <div>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <BuildingOfficeIcon className={iconClasses} />
-                    </div>
-                    <input
-                      type="text"
-                      name="organizationName"
-                      value={formData.organizationName}
-                      onChange={handleChange}
-                      placeholder="Organization Name"
-                      className={`${inputBaseClasses} ${errors.organizationName ? 'border-red-500' : ''}`}
-                      disabled={isLoading}
-                    />
-                  </div>
-                  {errors.organizationName && <p className={errorClasses}>{errors.organizationName}</p>}
-                </div>
-
                 {/* Registration Code Input */}
                 <div>
                   <div className="relative">
@@ -385,6 +441,7 @@ export default function AdminRegister() {
                     </div>
                     <input
                       type="text"
+                      required
                       name="registrationCode"
                       value={formData.registrationCode}
                       onChange={handleChange}
