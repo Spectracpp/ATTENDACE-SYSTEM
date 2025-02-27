@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { FaHome, FaUser, FaQrcode, FaHistory, FaTrophy, FaBuilding, FaUsers, FaCalendarAlt, FaChartBar, FaCog } from 'react-icons/fa';
 import { motion } from 'framer-motion';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/app/context/AuthContext';
 
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);

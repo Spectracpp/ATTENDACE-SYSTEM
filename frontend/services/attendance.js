@@ -11,7 +11,7 @@ export const attendanceService = {
         limit: filters.limit || 10
       }).toString();
 
-      const response = await api.get(`/qr/attendance/${organizationId}?${params}`);
+      const response = await api.get(`/attendance/user/${organizationId}?${params}`);
       return response.data;
     } catch (error) {
       throw new Error(error.response?.data?.message || 'Error fetching attendance history');

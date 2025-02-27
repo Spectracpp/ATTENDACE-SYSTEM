@@ -1,4 +1,4 @@
-import { API_URL } from '@/config';
+import { API_URL } from '@/lib/config';
 import { apiRequest } from './base';
 
 export async function getOrganizations() {

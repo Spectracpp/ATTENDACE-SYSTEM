@@ -46,7 +46,16 @@ export default function GenerateQRModal({ onClose, onSuccess }) {
 
     try {
       const { organizationId, ...data } = formData;
-      const response = await generateQRCode(organizationId, data);
+      
+      // Convert dates to ISO strings
+      const formattedData = {
+        ...data,
+        validFrom: data.validFrom ? new Date(data.validFrom).toISOString() : undefined,
+        validUntil: data.validUntil ? new Date(data.validUntil).toISOString() : undefined,
+      };
+      
+      const response = await generateQRCode(organizationId, formattedData);
+      
       if (response.success) {
         toast.success('QR Code generated successfully!');
         onSuccess(response.qrCode);

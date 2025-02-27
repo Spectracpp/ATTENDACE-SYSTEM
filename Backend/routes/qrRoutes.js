@@ -21,7 +21,7 @@ router.post('/generate',
   rateLimiter,
   async (req, res) => {
     try {
-      const { organization: orgId, type, location, metadata, settings } = req.body;
+      const { organization: orgId, type, location, metadata, settings, allowMultipleScans } = req.body;
 
       // Get organization settings
       const organization = await Organization.findById(orgId);
@@ -31,17 +31,19 @@ router.post('/generate',
 
       // Create QR session
       const qrSession = new QRSession({
-        sessionId: require('crypto').randomBytes(32).toString('hex'),
+        sessionId: require('crypto').randomBytes(16).toString('hex'),
         organization: orgId,
         createdBy: req.user._id,
         type: type || 'attendance',
-        expiresAt: new Date(Date.now() + (organization.settings.qrCodeExpiry * 60 * 1000)),
+        expiresAt: new Date(Date.now() + (organization.settings.qrCodeExpiry * 60 * 60 * 1000)), // Convert hours to milliseconds
         location,
         metadata,
         settings: {
           ...organization.settings,
-          ...settings
-        }
+          ...settings,
+          allowMultipleScans: allowMultipleScans || false
+        },
+        status: 'active'
       });
 
       await qrSession.save();
@@ -56,17 +58,31 @@ router.post('/generate',
       const qrImage = await qr.toDataURL(JSON.stringify(qrData));
 
       res.json({
+        success: true,
         message: "QR session created successfully",
-        qrCode: qrImage,
-        expiresAt: qrSession.expiresAt,
-        sessionId: qrSession.sessionId
+        qrCode: {
+          id: qrSession._id,
+          sessionId: qrSession.sessionId,
+          imageUrl: qrImage,
+          expiresAt: qrSession.expiresAt,
+          status: qrSession.status,
+          allowMultipleScans: qrSession.settings.allowMultipleScans,
+          type: qrSession.type,
+          organization: {
+            id: organization._id,
+            name: organization.name
+          }
+        }
       });
 
     } catch (error) {
       console.error('Error generating QR session:', error);
-      res.status(500).json({ message: "Error generating QR session" });
+      res.status(500).json({ 
+        success: false,
+        message: "Error generating QR session" 
+      });
     }
-});
+  });
 
 /**
  * @route POST /api/qr/scan

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { LogoWithText } from '@/components/Logo';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/app/context/AuthContext';
 import { FaEnvelope, FaLock } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 
@@ -89,8 +89,21 @@ export default function Login() {
 
     } catch (error) {
       console.error('Login error:', error);
-      setError(error.message || 'Login failed');
-      toast.error(error.message || 'Login failed');
+      
+      // Handle different error types
+      if (error.response?.data?.message) {
+        // API error with message
+        setError(error.response.data.message);
+        toast.error(error.response.data.message);
+      } else if (error.message) {
+        // JavaScript error with message
+        setError(error.message);
+        toast.error(error.message);
+      } else {
+        // Fallback error
+        setError('Login failed. Please check your credentials and try again.');
+        toast.error('Login failed');
+      }
     } finally {
       setLoading(false);
     }

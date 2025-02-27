@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/app/context/AuthContext';
 import { toast } from 'react-hot-toast';
 
 export default function ChangePasswordForm() {

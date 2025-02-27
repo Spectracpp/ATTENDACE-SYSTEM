@@ -176,8 +176,13 @@ export default function QRCodesPage() {
               </div>
               <div className="text-center p-3 rounded-lg bg-[#7928ca]/10">
                 <p className="text-sm font-medium text-[#7928ca]">Scans</p>
-                <p className="text-white">{qr.scans}</p>
+                <p className="text-white">{qr.scans || 0}</p>
               </div>
+            </div>
+
+            <div className="mb-4 p-3 rounded-lg bg-gray-800/50">
+              <p className="text-sm font-medium text-gray-300 mb-1">Multiple Scans</p>
+              <p className="text-white">{qr.allowMultipleScans ? 'Allowed' : 'Not Allowed'}</p>
             </div>
 
             <div className="flex gap-2">

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { FaCog, FaBell, FaLock, FaGlobe, FaClock, FaQrcode, FaUser } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { updateProfile, getCurrentUser } from '@/lib/api/user';
+import { getCurrentUser, updateProfile } from '@/lib/api/userAlias';
 import OrganizationSettings from '@/components/Settings/OrganizationSettings';
 
 export default function SettingsPage() {

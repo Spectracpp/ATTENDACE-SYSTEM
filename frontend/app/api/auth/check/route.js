@@ -19,41 +19,50 @@ export async function GET() {
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
     console.log('Checking auth with backend:', `${backendUrl}/api/auth/check`);
 
-    const response = await fetch(`${backendUrl}/api/auth/check`, {
-      headers: {
-        'Authorization': `Bearer ${token.value}`
-      },
-      cache: 'no-store'
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.log('Auth check failed:', {
-        status: response.status,
-        message: data.message
+    try {
+      const response = await fetch(`${backendUrl}/api/auth/check`, {
+        headers: {
+          'Authorization': `Bearer ${token.value}`
+        },
+        cache: 'no-store'
       });
 
-      // Clear invalid token
-      const res = NextResponse.json({
+      if (!response.ok) {
+        console.log('Auth check failed:', {
+          status: response.status
+        });
+
+        // Clear invalid token
+        const res = NextResponse.json({
+          success: false,
+          message: 'Authentication failed'
+        }, { status: 401 });
+
+        res.cookies.delete('token');
+        return res;
+      }
+
+      const data = await response.json();
+
+      console.log('Auth check successful:', {
+        email: data.user?.email,
+        role: data.user?.role
+      });
+
+      return NextResponse.json({
+        success: true,
+        user: data.user
+      });
+    } catch (fetchError) {
+      console.error('Fetch error during auth check:', fetchError);
+      
+      // Don't delete the token on network errors
+      // This prevents logout on temporary network issues
+      return NextResponse.json({
         success: false,
-        message: data.message || 'Authentication failed'
-      }, { status: response.status });
-
-      res.cookies.delete('token');
-      return res;
+        message: 'Network error during authentication check'
+      }, { status: 500 });
     }
-
-    console.log('Auth check successful:', {
-      email: data.user.email,
-      role: data.user.role
-    });
-
-    return NextResponse.json({
-      success: true,
-      user: data.user
-    });
-
   } catch (error) {
     console.error('Auth check error:', error);
     return NextResponse.json({

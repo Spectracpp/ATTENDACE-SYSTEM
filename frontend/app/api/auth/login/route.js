@@ -30,27 +30,23 @@ export async function POST(req) {
       }, { status: 400 });
     }
 
+    // Validate role
+    if (!['user', 'admin'].includes(role)) {
+      return NextResponse.json({
+        success: false,
+        message: 'Invalid role specified'
+      }, { status: 400 });
+    }
+
     // Trim whitespace and validate
     const trimmedEmail = email.toLowerCase().trim();
     const trimmedPassword = password.trim();
 
-    console.log('Frontend - Password details:', {
-      originalLength: password.length,
-      trimmedLength: trimmedPassword.length,
-      firstChar: trimmedPassword[0],
-      lastChar: trimmedPassword[trimmedPassword.length - 1],
-      containsSpecial: /[!@#$%^&*]/.test(trimmedPassword),
-      containsNumber: /\d/.test(trimmedPassword),
-      containsUpper: /[A-Z]/.test(trimmedPassword),
-      containsLower: /[a-z]/.test(trimmedPassword)
+    console.log('Frontend - Login details:', {
+      email: trimmedEmail,
+      role,
+      passwordLength: trimmedPassword.length
     });
-
-    if (trimmedPassword.length < 6) {
-      return NextResponse.json({
-        success: false,
-        message: 'Password must be at least 6 characters long'
-      }, { status: 400 });
-    }
 
     // Make request to backend
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
@@ -75,7 +71,8 @@ export async function POST(req) {
     if (!response.ok) {
       console.log('Login failed:', {
         status: response.status,
-        message: data.message
+        message: data.message,
+        role
       });
 
       return NextResponse.json({

@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { FaCog, FaBell, FaLock, FaGlobe, FaClock, FaQrcode, FaUser, FaBuilding } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
-import { updateProfile, getCurrentUser } from '@/lib/api/user';
+import { getCurrentUser, updateProfile } from '@/lib/api/userAlias';
 import OrganizationSettings from '@/components/Settings/OrganizationSettings';
+import OrganizationSelector from '@/components/Settings/OrganizationSelector';
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -155,6 +156,15 @@ export default function SettingsPage() {
           Settings
         </h1>
       </div>
+
+      {/* Organization Selector */}
+      <section className="bg-black/50 rounded-xl p-6 backdrop-blur-sm border border-gray-800">
+        <div className="flex items-center gap-2 mb-6">
+          <FaBuilding className="text-[#ff0080] text-xl" />
+          <h2 className="text-xl font-semibold text-white">Active Organization</h2>
+        </div>
+        <OrganizationSelector />
+      </section>
 
       {/* Profile Section */}
       <section className="bg-black/50 rounded-xl p-6 backdrop-blur-sm border border-gray-800">

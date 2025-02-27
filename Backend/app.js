@@ -12,6 +12,8 @@ const organizationRoutes = require('./routes/organizationRoutes');
 const qrCodeRoutes = require('./routes/qrCodeRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
+const userAttendanceRoutes = require('./routes/userAttendanceRoutes');
+const userLeavesRoutes = require('./routes/userLeavesRoutes');
 
 require('dotenv').config();
 
@@ -102,6 +104,8 @@ app.use('/api/organizations', organizationRoutes);
 app.use('/api/qr', qrCodeRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/user', userAttendanceRoutes);
+app.use('/api/user', userLeavesRoutes);
 
 // Health check endpoint
 app.get('/api/health-check', (req, res) => {

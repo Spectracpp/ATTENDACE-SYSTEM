@@ -10,8 +10,8 @@ const nextConfig = {
     ];
   },
   env: {
-    NEXT_PUBLIC_API_URL: 'http://localhost:5000/api',
-    NEXT_PUBLIC_APP_URL: 'http://localhost:3000'
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   },
   webpack: (config) => {
     config.resolve.alias = {
@@ -19,9 +19,6 @@ const nextConfig = {
       '@': __dirname,
     };
     return config;
-  },
-  experimental: {
-    appDir: true,
   },
   typescript: {
     ignoreBuildErrors: true,

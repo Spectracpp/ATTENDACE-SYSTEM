@@ -234,7 +234,25 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Find user
+    // Find user without role filter first to provide better error messages
+    const userExists = await User.findOne({ email: email.toLowerCase() });
+    
+    if (!userExists) {
+      return res.status(401).json({ 
+        success: false,
+        message: 'Invalid email or password' 
+      });
+    }
+    
+    // If user exists but with different role
+    if (userExists && userExists.role !== role) {
+      return res.status(401).json({ 
+        success: false,
+        message: `This account is registered as a ${userExists.role}, not as a ${role}. Please use the correct login page.` 
+      });
+    }
+
+    // Find user with role filter
     const user = await User.findOne({ 
       email: email.toLowerCase(),
       role 
@@ -260,59 +278,57 @@ router.post('/login', async (req, res) => {
     if (!user.isActive) {
       return res.status(401).json({
         success: false,
-        message: 'Your account has been deactivated. Please contact support.'
+        message: 'Account is inactive. Please verify your email or contact support.'
       });
     }
 
-    // Verify password
-    const isMatch = await user.comparePassword(password);
+    // Check if email is verified (if required)
+    if (user.emailVerificationRequired && !user.emailVerified) {
+      return res.status(401).json({
+        success: false,
+        message: 'Please verify your email before logging in'
+      });
+    }
 
+    // Check password
+    const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      // Handle failed login attempt
+      // Increment failed login attempts
       await user.handleFailedLogin();
       
-      if (user.loginAttempts >= 5) {
-        return res.status(401).json({
-          success: false,
-          message: 'Account locked due to too many failed attempts. Please try again in 30 minutes.'
-        });
-      }
-
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
-        message: 'Invalid email or password',
-        attemptsRemaining: 5 - user.loginAttempts
+        message: 'Invalid email or password'
       });
     }
 
     // Reset login attempts on successful login
     await user.resetLoginAttempts();
 
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save();
-
     // Generate JWT token
     const token = jwt.sign(
       { 
-        user: {
-          id: user._id,
-          role: user.role
-        }
+        id: user._id,
+        role: user.role,
+        email: user.email
       },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '1d' }
     );
 
-    // Set token in cookie
+    // Set JWT as HTTP-only cookie
     res.cookie('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      maxAge: 24 * 60 * 60 * 1000 // 1 day
     });
 
-    // Send response
+    // Update last login timestamp
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Return user data (excluding sensitive info)
     res.json({
       success: true,
       message: 'Login successful',
@@ -321,15 +337,16 @@ router.post('/login', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        organization: user.organizationName
-      },
-      token
+        phone: user.phone,
+        profileImage: user.profileImage,
+        lastLogin: user.lastLogin
+      }
     });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({
       success: false,
-      message: 'Login failed. Please try again.'
+      message: 'Server error during login'
     });
   }
 });

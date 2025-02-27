@@ -30,6 +30,15 @@ export function middleware(request) {
     '/admin/settings',
   ];
 
+  // User-only paths
+  const userPaths = [
+    '/user',
+    '/user/dashboard',
+    '/user/attendance',
+    '/user/leaves',
+    '/user/profile',
+  ];
+
   const currentPath = request.nextUrl.pathname;
 
   // Skip middleware for public paths, static files, and API routes
@@ -42,38 +51,60 @@ export function middleware(request) {
     return NextResponse.next();
   }
 
-  // Redirect /auth/login to /auth/login/user
-  if (currentPath === '/auth/login') {
-    return NextResponse.redirect(new URL('/auth/login/user', request.url));
-  }
-
   // Get auth cookies
   const token = request.cookies.get('token');
   const role = request.cookies.get('role');
 
-  console.log('Middleware - Auth check:', {
-    path: currentPath,
-    hasToken: !!token?.value,
-    role: role?.value
-  });
+  // Handle /dashboard redirect
+  if (currentPath === '/dashboard') {
+    if (role?.value === 'admin') {
+      return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+    } else if (role?.value === 'user') {
+      return NextResponse.redirect(new URL('/user/dashboard', request.url));
+    } else {
+      return NextResponse.redirect(new URL('/auth/login/user', request.url));
+    }
+  }
 
-  // If no token, redirect to login
+  // If no token, redirect to appropriate login page
   if (!token?.value) {
     // For admin paths, redirect to admin login
     if (adminPaths.some(path => currentPath.startsWith(path))) {
-      return NextResponse.redirect(new URL('/auth/admin/login', request.url));
+      return NextResponse.redirect(new URL('/auth/login/admin', request.url));
     }
-    // For other protected paths, redirect to user login
+    // For user paths or other protected paths, redirect to user login
+    if (userPaths.some(path => currentPath.startsWith(path))) {
+      return NextResponse.redirect(new URL('/auth/login/user', request.url));
+    }
+    // For any other protected path
     return NextResponse.redirect(new URL('/auth/login/user', request.url));
   }
 
-  // Check role-based access
+  // Check role-based access for admin paths
   if (adminPaths.some(path => currentPath.startsWith(path)) && role?.value !== 'admin') {
     console.log('Middleware - Unauthorized admin access attempt:', {
       path: currentPath,
       userRole: role?.value
     });
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    return NextResponse.redirect(new URL('/user/dashboard', request.url));
+  }
+
+  // Check role-based access for user paths
+  if (userPaths.some(path => currentPath.startsWith(path)) && role?.value !== 'user') {
+    console.log('Middleware - Unauthorized user access attempt:', {
+      path: currentPath,
+      userRole: role?.value
+    });
+    return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+  }
+
+  // If trying to access root path with auth, redirect to role-specific dashboard
+  if (currentPath === '/') {
+    if (role?.value === 'admin') {
+      return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+    } else if (role?.value === 'user') {
+      return NextResponse.redirect(new URL('/user/dashboard', request.url));
+    }
   }
 
   return NextResponse.next();

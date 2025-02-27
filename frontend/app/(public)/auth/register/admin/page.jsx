@@ -14,7 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { LogoWithText } from '@/components/Logo';
 import Link from 'next/link';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/app/context/AuthContext';
 import { useOrganizations } from '@/hooks/useOrganizations';
 
 export default function AdminRegister() {

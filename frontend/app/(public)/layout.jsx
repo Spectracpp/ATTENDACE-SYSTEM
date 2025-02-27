@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/app/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import LoadingSpinner from '@/components/LoadingSpinner';
@@ -16,7 +16,7 @@ export default function PublicLayout({ children }) {
       if (user.role === 'admin') {
         router.replace('/admin/dashboard');
       } else {
-        router.replace('/dashboard');
+        router.replace('/user/dashboard');
       }
     }
   }, [loading, user, router]);

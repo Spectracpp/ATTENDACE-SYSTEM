@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/app/context/AuthContext';
 import { Card, Typography, Box } from '@mui/material';
 import { FaClock, FaCalendarAlt, FaChartLine, FaCheckCircle } from 'react-icons/fa';
 import LoadingSpinner from '@/components/LoadingSpinner';

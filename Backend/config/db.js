@@ -15,8 +15,6 @@ const connectDB = async () => {
             socketTimeoutMS: 45000,
             family: 4,
             heartbeatFrequencyMS: 10000,
-            retryWrites: true,
-            w: 'majority'
         };
 
         // Connect to MongoDB

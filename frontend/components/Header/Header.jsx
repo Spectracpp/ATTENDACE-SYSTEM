@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/app/context/AuthContext';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { FaBars, FaBell } from 'react-icons/fa';

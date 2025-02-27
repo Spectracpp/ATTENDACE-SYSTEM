@@ -19,7 +19,7 @@ export async function POST(req) {
       password: '***hidden***'
     });
 
-    const { role, password } = body;
+    const { role, password, email } = body;
 
     // Validate role
     if (!role || !['user', 'admin'].includes(role)) {
@@ -30,12 +30,23 @@ export async function POST(req) {
       );
     }
 
+    // Validate email
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      console.log('Invalid email format:', email);
+      return NextResponse.json({
+        success: false,
+        message: 'Invalid email format',
+        field: 'email'
+      }, { status: 400 });
+    }
+
     // Validate password format
     if (!validatePassword(password)) {
       console.log('Invalid password format');
       return NextResponse.json({
         success: false,
-        message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'
+        message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+        field: 'password'
       }, { status: 400 });
     }
 
@@ -50,8 +61,9 @@ export async function POST(req) {
       },
       body: JSON.stringify({
         ...body,
-        email: body.email.toLowerCase().trim(),
-        password: password // Make sure we're sending the password
+        email: email.toLowerCase().trim(),
+        password: password, // Make sure we're sending the password
+        role: role // Explicitly include role
       })
     });
 
@@ -60,12 +72,13 @@ export async function POST(req) {
     if (!response.ok) {
       console.log('Registration failed:', {
         status: response.status,
-        message: data.message
+        message: data.message,
+        field: data.field
       });
 
       return NextResponse.json({
         success: false,
-        message: data.message,
+        message: data.message || 'Registration failed',
         field: data.field
       }, { status: response.status });
     }

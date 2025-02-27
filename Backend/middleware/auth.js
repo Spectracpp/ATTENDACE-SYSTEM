@@ -79,12 +79,24 @@ const auth = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     console.log('Token decoded:', decoded);
 
-    if (!decoded.user || !decoded.user.id) {
+    // Handle both token formats (with user object or with direct id/role)
+    let userId;
+    let userRole;
+
+    if (decoded.user && decoded.user.id) {
+      // Old format: { user: { id, role } }
+      userId = decoded.user.id;
+      userRole = decoded.user.role;
+    } else if (decoded.id) {
+      // New format: { id, role, email }
+      userId = decoded.id;
+      userRole = decoded.role;
+    } else {
       throw new Error('Invalid token format - no user ID found');
     }
 
     // Get user from database
-    const user = await User.findById(decoded.user.id)
+    const user = await User.findById(userId)
       .select('-password')
       .lean();
 
@@ -107,7 +119,7 @@ const auth = async (req, res, next) => {
     req.user = {
       ...user,
       id: user._id,
-      role: decoded.user.role
+      role: userRole
     };
 
     next();
