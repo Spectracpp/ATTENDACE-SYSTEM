@@ -18,7 +18,7 @@ const qrCodeSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['daily', 'event', 'temporary'],
+    enum: ['daily', 'event', 'temporary', 'attendance'],
     default: 'daily'
   },
   validFrom: {

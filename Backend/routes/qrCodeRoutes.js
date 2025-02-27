@@ -50,6 +50,13 @@ router.post('/generate/:organizationId', auth, async (req, res) => {
     const { organizationId } = req.params;
     const { type = 'daily', validityHours = 24, location, settings = {} } = req.body;
 
+    // Set default validity for attendance QR codes
+    let validityPeriod = validityHours;
+    if (type === 'attendance') {
+      // Default to 2 hours for attendance QR codes if not specified
+      validityPeriod = validityHours || 2;
+    }
+
     // Validate organizationId
     if (!mongoose.Types.ObjectId.isValid(organizationId)) {
       return res.status(400).json({
@@ -91,7 +98,7 @@ router.post('/generate/:organizationId', auth, async (req, res) => {
 
     // Calculate validity period
     const validFrom = new Date();
-    const validUntil = new Date(validFrom.getTime() + validityHours * 60 * 60 * 1000);
+    const validUntil = new Date(validFrom.getTime() + validityPeriod * 60 * 60 * 1000);
 
     // Create QR code
     const qrCode = new QRCode({

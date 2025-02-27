@@ -63,10 +63,10 @@ export default function Sidebar() {
       description: 'View and manage attendance records'
     },
     { 
-      name: 'Reports', 
-      href: '/admin/reports', 
+      name: 'Analytics', 
+      href: '/admin/analytics', 
       icon: FaChartBar,
-      description: 'View attendance reports and analytics'
+      description: 'View attendance analytics'
     },
   ];
 

@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FaQrcode, FaPlus, FaDownload, FaTrash, FaHistory, FaCopy } from 'react-icons/fa';
+import { FaQrcode, FaPlus, FaDownload, FaTrash, FaHistory, FaCopy, FaEye } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import GenerateQRModal from '@/components/QRCode/GenerateQRModal';
 import QRCodeHistoryModal from '@/components/QRCode/QRCodeHistoryModal';
+import ViewQRCodeModal from '@/components/QRCode/ViewQRCodeModal';
 import { getQRCodes, deactivateQRCode } from '@/lib/api/qrcode';
 
 export default function QRCodesPage() {
@@ -14,6 +15,7 @@ export default function QRCodesPage() {
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [selectedQRCode, setSelectedQRCode] = useState(null);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showViewQRModal, setShowViewQRModal] = useState(false);
 
   const fetchQRCodes = async () => {
     try {
@@ -53,13 +55,53 @@ export default function QRCodesPage() {
   };
 
   const handleDownload = (qrCode) => {
-    // Create a temporary link to download the QR code image
-    const link = document.createElement('a');
-    link.href = qrCode.imageUrl;
-    link.download = `${qrCode.name}-qr-code.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Check if QR code has an image
+    if (!qrCode.qrImage && !qrCode.imageUrl) {
+      toast.error('QR code image is not available for download');
+      return;
+    }
+    
+    try {
+      // Create a canvas element to draw the QR code
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Set canvas dimensions to match the image
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        // Draw the image on the canvas
+        ctx.drawImage(img, 0, 0);
+        
+        // Convert canvas to blob
+        canvas.toBlob((blob) => {
+          // Create a download link
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `qr-code-${qrCode.id || 'download'}.png`;
+          document.body.appendChild(link);
+          link.click();
+          
+          // Clean up
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          toast.success('QR code downloaded successfully');
+        }, 'image/png');
+      };
+      
+      img.onerror = () => {
+        throw new Error('Failed to load QR code image');
+      };
+      
+      // Set the source of the image to the QR code data URL
+      img.src = qrCode.qrImage || qrCode.imageUrl;
+    } catch (error) {
+      console.error('Error downloading QR code:', error);
+      toast.error('Failed to download QR code');
+    }
   };
 
   const handleCopy = (qrCode) => {
@@ -73,6 +115,22 @@ export default function QRCodesPage() {
   const handleViewHistory = (qrCode) => {
     setSelectedQRCode(qrCode);
     setShowHistoryModal(true);
+  };
+
+  const handleViewQRCode = (qrCode) => {
+    // Ensure the QR code has the necessary data for display
+    if (!qrCode.qrImage) {
+      // If qrImage is not available, try to use imageUrl
+      if (qrCode.imageUrl) {
+        qrCode.qrImage = qrCode.imageUrl;
+      } else {
+        toast.error('QR code image is not available');
+        return;
+      }
+    }
+    
+    setSelectedQRCode(qrCode);
+    setShowViewQRModal(true);
   };
 
   if (isLoading) {
@@ -151,6 +209,12 @@ export default function QRCodesPage() {
                 >
                   <FaTrash />
                 </button>
+                <button 
+                  onClick={() => handleViewQRCode(qr)}
+                  className="p-2 rounded-lg bg-[#7928ca]/20 text-[#7928ca] hover:bg-[#7928ca]/30 transition-colors"
+                >
+                  <FaEye />
+                </button>
               </div>
             </div>
 
@@ -220,6 +284,16 @@ export default function QRCodesPage() {
           qrCodeId={selectedQRCode.id}
           onClose={() => {
             setShowHistoryModal(false);
+            setSelectedQRCode(null);
+          }}
+        />
+      )}
+
+      {showViewQRModal && selectedQRCode && (
+        <ViewQRCodeModal
+          qrCode={selectedQRCode}
+          onClose={() => {
+            setShowViewQRModal(false);
             setSelectedQRCode(null);
           }}
         />

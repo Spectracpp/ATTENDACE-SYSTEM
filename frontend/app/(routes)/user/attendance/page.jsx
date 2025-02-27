@@ -139,6 +139,9 @@ const Calendar = ({ attendance }) => {
 const QRCodeScanner = ({ onScan }) => {
   const scannerRef = useRef(null);
   const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  const [scanError, setScanError] = useState(null);
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     if (!scanning) return;
@@ -152,12 +155,24 @@ const QRCodeScanner = ({ onScan }) => {
 
     // Start scanning
     scanner.render((decodedText) => {
-      // Stop scanner and call onScan with the decoded text
+      // Stop scanner
       scanner.clear();
       setScanning(false);
-      onScan(decodedText);
+      setScanResult(decodedText);
+      setProcessing(true);
+      
+      // Process the scan result
+      try {
+        onScan(decodedText);
+      } catch (error) {
+        setScanError('Failed to process QR code. Please try again.');
+        console.error('Error processing QR code:', error);
+      } finally {
+        setProcessing(false);
+      }
     }, (error) => {
       console.warn(error);
+      setScanError(error);
     });
 
     scannerRef.current = scanner;
@@ -169,11 +184,55 @@ const QRCodeScanner = ({ onScan }) => {
     };
   }, [scanning, onScan]);
 
+  const resetScanner = () => {
+    setScanResult(null);
+    setScanError(null);
+    setProcessing(false);
+  };
+
   return (
     <div className="bg-gray-800/50 backdrop-blur-md border border-gray-700 rounded-lg p-6">
-      <h2 className="text-xl font-semibold text-white mb-4">QR Code Scanner</h2>
+      <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+        <FaQrcode className="text-[#ff0080]" />
+        QR Code Scanner
+      </h2>
       
-      {!scanning ? (
+      {scanResult && !processing ? (
+        <div className="space-y-4">
+          <div className="p-4 bg-green-500/20 border border-green-500/30 rounded-lg">
+            <p className="text-green-400 font-medium flex items-center gap-2">
+              <FaCheckCircle />
+              QR Code scanned successfully!
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              resetScanner();
+              setScanning(true);
+            }}
+            className="w-full py-3 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors flex items-center justify-center gap-2"
+          >
+            <FaQrcode />
+            Scan Another Code
+          </button>
+        </div>
+      ) : scanError ? (
+        <div className="space-y-4">
+          <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
+            <p className="text-red-400">Error: {scanError}</p>
+          </div>
+          <button
+            onClick={() => {
+              resetScanner();
+              setScanning(true);
+            }}
+            className="w-full py-3 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors flex items-center justify-center gap-2"
+          >
+            <FaQrcode />
+            Try Again
+          </button>
+        </div>
+      ) : !scanning ? (
         <button
           onClick={() => setScanning(true)}
           className="w-full py-3 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors flex items-center justify-center gap-2"
@@ -184,6 +243,7 @@ const QRCodeScanner = ({ onScan }) => {
       ) : (
         <div className="space-y-4">
           <div id="qr-reader" className="w-full"></div>
+          <p className="text-sm text-gray-400 text-center">Position the QR code within the scanner frame</p>
           <button
             onClick={() => {
               if (scannerRef.current) {
@@ -454,47 +514,60 @@ export default function UserAttendance() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-white">Attendance</h1>
-        <div className="flex items-center gap-2">
-          <FaCalendarAlt className="text-pink-500" />
-          <span className="text-white">{new Date().toLocaleDateString()}</span>
+    <div className="max-w-6xl mx-auto py-8 px-4">
+      <h1 className="text-3xl font-bold text-white mb-8">Attendance</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* QR Code Scanner - Placed first for emphasis */}
+        <div className="md:col-span-3 mb-6">
+          <div className="bg-gradient-to-r from-[#7928ca]/20 to-[#ff0080]/20 p-1 rounded-lg">
+            <div className="bg-gray-900 rounded-lg p-6">
+              <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                <FaQrcode className="text-[#ff0080]" />
+                Mark Attendance
+              </h2>
+              <p className="text-gray-400 mb-6">
+                Scan the QR code provided by your organization to mark your attendance quickly and easily.
+              </p>
+              <QRCodeScanner onScan={handleQRScan} />
+            </div>
+          </div>
+        </div>
+        <LocationAttendance onMarkAttendance={handleLocationAttendance} />
+        
+        {/* Attendance Stats */}
+        <div className="col-span-1 md:col-span-3">
+          <div className="bg-gray-800/50 backdrop-blur-md border border-gray-700 rounded-lg p-6">
+            <h2 className="text-xl font-semibold text-white mb-4">Attendance Stats</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-gray-700/50 rounded-lg p-4">
+                <p className="text-gray-400 text-sm">Present</p>
+                <p className="text-white text-2xl font-bold">{stats.present}</p>
+              </div>
+              <div className="bg-gray-700/50 rounded-lg p-4">
+                <p className="text-gray-400 text-sm">Absent</p>
+                <p className="text-white text-2xl font-bold">{stats.absent}</p>
+              </div>
+              <div className="bg-gray-700/50 rounded-lg p-4">
+                <p className="text-gray-400 text-sm">Late</p>
+                <p className="text-white text-2xl font-bold">{stats.late}</p>
+              </div>
+              <div className="bg-gray-700/50 rounded-lg p-4">
+                <p className="text-gray-400 text-sm">Attendance Rate</p>
+                <p className="text-white text-2xl font-bold">{stats.attendanceRate.toFixed(1)}%</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Calendar */}
+        <div className="col-span-1 md:col-span-3">
+          <div className="bg-gray-800/50 backdrop-blur-md border border-gray-700 rounded-lg p-6">
+            <h2 className="text-xl font-semibold text-white mb-4">Attendance Calendar</h2>
+            <Calendar attendance={attendance} />
+          </div>
         </div>
       </div>
-
-      {todayMarked ? (
-        <div className="bg-green-500/20 text-green-500 p-4 rounded-lg flex items-center gap-3">
-          <FaCheckCircle className="text-xl" />
-          <p className="font-medium">You have already marked your attendance for today!</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <QRCodeScanner onScan={handleQRScan} />
-          <LocationAttendance onMarkAttendance={handleLocationAttendance} />
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-gray-800/50 backdrop-blur-md border border-gray-700 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-white mb-2">Present Days</h3>
-          <p className="text-3xl font-bold text-green-500">{stats.present}</p>
-        </div>
-        <div className="bg-gray-800/50 backdrop-blur-md border border-gray-700 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-white mb-2">Absent Days</h3>
-          <p className="text-3xl font-bold text-red-500">{stats.absent}</p>
-        </div>
-        <div className="bg-gray-800/50 backdrop-blur-md border border-gray-700 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-white mb-2">Late Days</h3>
-          <p className="text-3xl font-bold text-yellow-500">{stats.late}</p>
-        </div>
-        <div className="bg-gray-800/50 backdrop-blur-md border border-gray-700 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-white mb-2">Attendance Rate</h3>
-          <p className="text-3xl font-bold text-pink-500">{stats.attendanceRate.toFixed(1)}%</p>
-        </div>
-      </div>
-
-      <Calendar attendance={attendance} />
     </div>
   );
 }

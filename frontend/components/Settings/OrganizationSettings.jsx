@@ -10,6 +10,7 @@ import {
   deleteOrganization,
   getOrganizationMembers
 } from '@/lib/api/organization';
+import JoinOrganizationForm from '@/components/Organization/JoinOrganizationForm';
 
 export default function OrganizationSettings({ isAdmin, profileData }) {
   const [organizations, setOrganizations] = useState([]);
@@ -481,6 +482,7 @@ export default function OrganizationSettings({ isAdmin, profileData }) {
           </div>
         </div>
       )}
+      <JoinOrganizationForm onSuccess={fetchOrganizations} />
     </div>
   );
 }

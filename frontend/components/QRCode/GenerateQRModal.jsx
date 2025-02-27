@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FaTimes } from 'react-icons/fa';
+import { FaTimes, FaQrcode } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { generateQRCode } from '@/lib/api/qrcode';
 import { getOrganizations } from '@/lib/api/organization';
+import ViewQRCodeModal from './ViewQRCodeModal';
 
 export default function GenerateQRModal({ onClose, onSuccess }) {
   const [organizations, setOrganizations] = useState([]);
@@ -19,6 +20,8 @@ export default function GenerateQRModal({ onClose, onSuccess }) {
   });
   const [loading, setLoading] = useState(false);
   const [loadingOrgs, setLoadingOrgs] = useState(true);
+  const [generatedQRCode, setGeneratedQRCode] = useState(null);
+  const [showQRCodeModal, setShowQRCodeModal] = useState(false);
 
   useEffect(() => {
     const fetchOrganizations = async () => {
@@ -58,8 +61,22 @@ export default function GenerateQRModal({ onClose, onSuccess }) {
       
       if (response.success) {
         toast.success('QR Code generated successfully!');
-        onSuccess(response.qrCode);
-        onClose();
+        
+        // Make sure the QR code data is properly formatted
+        if (response.qrCode && response.qrCode.qrImage) {
+          // Ensure the qrImage is a valid data URL
+          if (!response.qrCode.qrImage.startsWith('data:image')) {
+            console.error('Invalid QR code image format:', response.qrCode.qrImage.substring(0, 30) + '...');
+            toast.error('QR code image format is invalid');
+          } else {
+            setGeneratedQRCode(response.qrCode);
+            setShowQRCodeModal(true);
+            if (onSuccess) onSuccess(response.qrCode);
+          }
+        } else {
+          console.error('QR code data is missing or invalid:', response.qrCode);
+          toast.error('QR code data is missing or invalid');
+        }
       } else {
         toast.error(response.message || 'Failed to generate QR Code');
       }
@@ -204,6 +221,12 @@ export default function GenerateQRModal({ onClose, onSuccess }) {
           </div>
         </form>
       </div>
+      {showQRCodeModal && (
+        <ViewQRCodeModal
+          qrCode={generatedQRCode}
+          onClose={() => setShowQRCodeModal(false)}
+        />
+      )}
     </div>
   );
 }

@@ -287,6 +287,59 @@ router.put('/profile',
 });
 
 /**
+ * @route PUT /api/users/active-organization
+ * @desc Set user's active organization
+ * @access Private
+ */
+router.put('/active-organization', auth, async (req, res) => {
+  try {
+    const { organizationId } = req.body;
+    
+    if (!organizationId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Organization ID is required'
+      });
+    }
+
+    // Verify the organization exists and user is a member
+    const organization = await Organization.findOne({
+      _id: organizationId,
+      'members.user': req.user._id,
+      'members.status': 'active'
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organization not found or you are not an active member'
+      });
+    }
+
+    // Update the user's active organization
+    req.user.activeOrganization = organizationId;
+    await req.user.save();
+
+    // Return the updated user
+    const updatedUser = await User.findById(req.user._id)
+      .select('-password')
+      .populate('activeOrganization');
+
+    res.json({
+      success: true,
+      message: 'Active organization updated successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Set active organization error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error setting active organization'
+    });
+  }
+});
+
+/**
  * @route POST /api/users/logout
  * @desc Logout user
  * @access Private

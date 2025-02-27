@@ -143,6 +143,10 @@ export default function OrganizationsPage() {
           isOpen={showAddModal}
           onClose={handleCloseModal}
           organization={selectedOrg}
+          onSuccess={() => {
+            fetchOrganizations();
+            handleCloseModal();
+          }}
         />
       )}
     </div>

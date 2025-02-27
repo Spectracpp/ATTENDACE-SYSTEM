@@ -168,7 +168,11 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  rewards: [rewardSchema]
+  rewards: [rewardSchema],
+  activeOrganization: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization'
+  }
 }, {
   timestamps: true,
   toJSON: {

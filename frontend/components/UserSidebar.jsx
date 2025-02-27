@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { FaHome, FaUserClock, FaCalendarAlt, FaUserCircle } from 'react-icons/fa';
+import { FaHome, FaUserClock, FaCalendarAlt, FaUserCircle, FaGift, FaBuilding } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 
 const navItems = [
@@ -15,6 +15,16 @@ const navItems = [
     label: 'Attendance',
     href: '/user/attendance',
     icon: FaUserClock
+  },
+  {
+    label: 'Organizations',
+    href: '/user/organizations',
+    icon: FaBuilding
+  },
+  {
+    label: 'Rewards',
+    href: '/user/rewards',
+    icon: FaGift
   },
   {
     label: 'Leaves',

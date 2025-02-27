@@ -67,7 +67,7 @@ router.get('/', async (req, res) => {
  * @desc Get user's organizations
  * @access Private
  */
-router.get('/my', async (req, res) => {
+router.get('/my', auth, async (req, res) => {
   try {
     const organizations = await Organization
       .find({ 'members.user': req.user._id })
@@ -81,6 +81,8 @@ router.get('/my', async (req, res) => {
         name: org.name,
         description: org.description,
         type: org.type,
+        members: org.members,
+        memberCount: org.members?.length || 0,
         role: org.members.find(m => m.user.toString() === req.user._id.toString())?.role,
         settings: org.settings
       }))
@@ -143,15 +145,19 @@ router.get('/:id', async (req, res) => {
  * @desc Create a new organization
  * @access Private
  */
-router.post('/', async (req, res) => {
+router.post('/', auth, async (req, res) => {
   try {
-    const { name, description, type } = req.body;
+    const { name, description, type, code } = req.body;
+
+    // Generate a unique code if not provided
+    const organizationCode = code || Math.random().toString(36).substring(2, 8).toUpperCase();
 
     const organization = new Organization({
       name,
       description,
       type,
-      code: Math.random().toString(36).substring(2, 8).toUpperCase(),
+      code: organizationCode,
+      createdBy: req.user._id,
       members: [{
         user: req.user._id,
         role: 'owner',
@@ -388,6 +394,85 @@ router.get('/:id/members', async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: 'Error fetching members' 
+    });
+  }
+});
+
+/**
+ * @route POST /api/organizations/join
+ * @desc Join an organization using a code
+ * @access Private
+ */
+router.post('/join', auth, async (req, res) => {
+  try {
+    const { code } = req.body;
+    
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Organization code is required'
+      });
+    }
+
+    // Find the organization by code
+    const organization = await Organization.findOne({ 
+      code: { $regex: new RegExp(`^${code}$`, 'i') },
+      status: 'active' 
+    });
+
+    if (!organization) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organization not found or inactive'
+      });
+    }
+
+    // Check if user is already a member
+    const existingMember = organization.members.find(
+      member => member.user.toString() === req.user._id.toString()
+    );
+
+    if (existingMember) {
+      return res.status(400).json({
+        success: false,
+        message: 'You are already a member of this organization'
+      });
+    }
+
+    // Add user to organization
+    const memberStatus = organization.settings?.requireAdminApproval ? 'pending' : 'active';
+    
+    organization.members.push({
+      user: req.user._id,
+      role: 'member',
+      status: memberStatus,
+      joinedAt: Date.now()
+    });
+
+    await organization.save();
+
+    // If no approval required, set as active organization for user
+    if (memberStatus === 'active') {
+      req.user.activeOrganization = organization._id;
+      await req.user.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      message: memberStatus === 'active' 
+        ? 'Successfully joined organization' 
+        : 'Join request submitted. Awaiting admin approval',
+      organization: {
+        _id: organization._id,
+        name: organization.name,
+        status: memberStatus
+      }
+    });
+  } catch (error) {
+    console.error('Join organization error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error joining organization'
     });
   }
 });

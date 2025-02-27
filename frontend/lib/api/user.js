@@ -3,7 +3,7 @@ import { apiRequest } from './base';
 
 export async function getUserProfile() {
   try {
-    const response = await apiRequest('/user/profile', {
+    const response = await apiRequest('/users/me', {
       timeout: 5000, // 5 second timeout
       retries: 1
     });
@@ -29,7 +29,7 @@ export async function getUserProfile() {
 
 export async function updateUserProfile(data) {
   try {
-    const response = await apiRequest('/user/profile', {
+    const response = await apiRequest('/users/profile', {
       method: 'PUT',
       body: data,
       timeout: 8000, // 8 second timeout
@@ -58,7 +58,7 @@ export async function updateUserProfile(data) {
 export async function getUserAttendance(params = {}) {
   try {
     const queryParams = new URLSearchParams(params).toString();
-    const response = await apiRequest(`/user/attendance?${queryParams}`, {
+    const response = await apiRequest(`/attendance/user?${queryParams}`, {
       timeout: 8000, // 8 second timeout
       retries: 1
     });
@@ -102,7 +102,7 @@ export async function getUserAttendance(params = {}) {
 
 export async function getUserOrganizations() {
   try {
-    const response = await apiRequest('/user/organizations', {
+    const response = await apiRequest('/organizations/my', {
       timeout: 8000, // 8 second timeout
       retries: 2
     });
@@ -166,7 +166,7 @@ export async function getUserOrganizations() {
 
 export async function joinOrganization(code) {
   try {
-    const response = await apiRequest('/user/organizations/join', {
+    const response = await apiRequest('/organizations/join', {
       method: 'POST',
       body: { code },
       timeout: 8000, // 8 second timeout
@@ -194,7 +194,7 @@ export async function joinOrganization(code) {
 
 export async function setActiveOrganization(organizationId) {
   try {
-    const response = await apiRequest('/user/organizations/active', {
+    const response = await apiRequest('/users/active-organization', {
       method: 'PUT',
       body: { organizationId },
       timeout: 5000, // 5 second timeout

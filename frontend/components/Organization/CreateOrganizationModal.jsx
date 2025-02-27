@@ -6,12 +6,13 @@ import { createOrganization, updateOrganization } from '@/lib/api/organization';
 import toast from 'react-hot-toast';
 import { FaTimes } from 'react-icons/fa';
 
-export default function CreateOrganizationModal({ organization, onClose, onSuccess }) {
+export default function CreateOrganizationModal({ organization, onClose, onSuccess = () => {} }) {
   const [formData, setFormData] = useState({
     name: '',
     code: '',
     type: 'business',
-    description: ''
+    description: '',
+    customCode: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -21,7 +22,8 @@ export default function CreateOrganizationModal({ organization, onClose, onSucce
         name: organization.name || '',
         code: organization.code || '',
         type: organization.type || 'business',
-        description: organization.description || ''
+        description: organization.description || '',
+        customCode: organization.customCode || ''
       });
     }
   }, [organization]);
@@ -31,15 +33,27 @@ export default function CreateOrganizationModal({ organization, onClose, onSucce
     setIsSubmitting(true);
 
     try {
+      // Prepare data for submission
+      const submissionData = {
+        name: formData.name,
+        type: formData.type,
+        description: formData.description
+      };
+
+      // Add code if provided
+      if (formData.customCode) {
+        submissionData.code = formData.customCode;
+      }
+
       const response = organization
-        ? await updateOrganization(organization._id, formData)
-        : await createOrganization(formData);
+        ? await updateOrganization(organization._id, submissionData)
+        : await createOrganization(submissionData);
 
       if (response.success) {
         toast.success(
           organization 
             ? 'Organization updated successfully' 
-            : 'Organization created successfully'
+            : `Organization created successfully! Code: ${response.organization?.code || 'N/A'}`
         );
         onSuccess();
       } else {
@@ -111,6 +125,20 @@ export default function CreateOrganizationModal({ organization, onClose, onSucce
               required
               className="w-full px-4 py-2 rounded-lg bg-black/50 border border-gray-800 text-white placeholder-gray-500 focus:outline-none focus:border-[#ff0080] transition-colors"
               placeholder="Enter organization code"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Custom Organization Code
+            </label>
+            <input
+              type="text"
+              name="customCode"
+              value={formData.customCode}
+              onChange={handleChange}
+              className="w-full px-4 py-2 rounded-lg bg-black/50 border border-gray-800 text-white placeholder-gray-500 focus:outline-none focus:border-[#ff0080] transition-colors"
+              placeholder="Enter custom organization code (optional)"
             />
           </div>
 
