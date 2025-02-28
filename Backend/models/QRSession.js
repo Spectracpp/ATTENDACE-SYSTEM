@@ -64,6 +64,11 @@ const qrSessionSchema = new mongoose.Schema({
       default: 0
     },
     lastScanAt: Date
+  },
+  // Add QR image field to store generated QR code
+  qrImage: {
+    type: String,
+    trim: true
   }
 }, {
   timestamps: true

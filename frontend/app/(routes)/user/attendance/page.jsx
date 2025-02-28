@@ -146,11 +146,15 @@ const QRCodeScanner = ({ onScan }) => {
   useEffect(() => {
     if (!scanning) return;
 
-    // Initialize scanner
+    // Initialize scanner with improved configuration
     const scanner = new Html5QrcodeScanner('qr-reader', {
       fps: 10,
-      qrbox: 250,
+      qrbox: { width: 250, height: 250 },
       rememberLastUsedCamera: true,
+      aspectRatio: 1.0,
+      showTorchButtonIfSupported: true,
+      showZoomSliderIfSupported: true,
+      defaultZoomValueIfSupported: 2,
     });
 
     // Start scanning
@@ -163,6 +167,18 @@ const QRCodeScanner = ({ onScan }) => {
       
       // Process the scan result
       try {
+        // Log the QR code data for debugging
+        console.log('QR Code scanned:', decodedText);
+        
+        // Try to parse the QR code data if it's JSON
+        let parsedData;
+        try {
+          parsedData = JSON.parse(decodedText);
+          console.log('Parsed QR data:', parsedData);
+        } catch (parseError) {
+          console.log('QR data is not JSON, using as raw string');
+        }
+        
         onScan(decodedText);
       } catch (error) {
         setScanError('Failed to process QR code. Please try again.');
@@ -171,8 +187,13 @@ const QRCodeScanner = ({ onScan }) => {
         setProcessing(false);
       }
     }, (error) => {
-      console.warn(error);
-      setScanError(error);
+      console.warn('QR Scanner error:', error);
+      // Only show user-friendly error messages
+      if (typeof error === 'string') {
+        setScanError(error);
+      } else {
+        setScanError('Scanner encountered an error. Please try again.');
+      }
     });
 
     scannerRef.current = scanner;
@@ -231,6 +252,13 @@ const QRCodeScanner = ({ onScan }) => {
             <FaQrcode />
             Try Again
           </button>
+        </div>
+      ) : processing ? (
+        <div className="space-y-4">
+          <div className="flex justify-center items-center p-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-500"></div>
+          </div>
+          <p className="text-center text-white">Processing QR code...</p>
         </div>
       ) : !scanning ? (
         <button
@@ -462,30 +490,66 @@ export default function UserAttendance() {
         }
       }
       
-      // Process the QR code - could be JSON or raw sessionId
-      let qrCodeData = qrCode;
+      // Process the QR code data
+      let qrCodeData;
       try {
-        // Check if it's already a JSON string
+        // First, check if it's already a valid JSON string
         if (typeof qrCode === 'string') {
-          JSON.parse(qrCode);
+          try {
+            qrCodeData = JSON.parse(qrCode);
+            console.log('QR code is valid JSON:', qrCodeData);
+          } catch (e) {
+            // If it's not valid JSON, try to extract data from it
+            console.log('QR code is not valid JSON, treating as raw data');
+            
+            // Check if it might be a URL with parameters
+            if (qrCode.includes('?') && qrCode.includes('=')) {
+              try {
+                const url = new URL(qrCode);
+                const params = Object.fromEntries(url.searchParams);
+                qrCodeData = params;
+                console.log('Extracted parameters from URL:', qrCodeData);
+              } catch (urlError) {
+                // Not a valid URL, use as raw data
+                qrCodeData = { data: qrCode };
+              }
+            } else {
+              // Use as raw data
+              qrCodeData = { data: qrCode };
+            }
+          }
+        } else if (typeof qrCode === 'object') {
+          // Already an object
+          qrCodeData = qrCode;
+        } else {
+          // Fallback for any other type
+          qrCodeData = { data: String(qrCode) };
         }
-      } catch (e) {
-        // If it's not valid JSON, wrap it as sessionId
-        qrCodeData = JSON.stringify({ sessionId: qrCode });
+      } catch (parseError) {
+        console.error('Error parsing QR code data:', parseError);
+        qrCodeData = { data: String(qrCode) };
       }
       
-      await axios.post('/api/user/attendance/mark', {
-        qrCode: qrCodeData,
+      // Ensure qrCodeData is sent as a string to the API
+      const payload = {
+        qrCode: typeof qrCodeData === 'string' ? qrCodeData : JSON.stringify(qrCodeData),
         method: 'qr',
         location
-      });
+      };
+      
+      console.log('Sending attendance payload:', payload);
+      
+      const response = await axios.post('/api/user/attendance/mark', payload);
+      
+      console.log('Attendance response:', response.data);
       
       toast.success('Attendance marked successfully!');
       setTodayMarked(true);
       fetchAttendanceData();
     } catch (error) {
       console.error('Error marking attendance:', error);
-      toast.error(error.response?.data?.message || 'Failed to mark attendance');
+      const errorMessage = error.response?.data?.message || 'Failed to mark attendance';
+      toast.error(errorMessage);
     }
   };
 
@@ -517,6 +581,15 @@ export default function UserAttendance() {
     <div className="max-w-6xl mx-auto py-8 px-4">
       <h1 className="text-3xl font-bold text-white mb-8">Attendance</h1>
       
+      {todayMarked && (
+        <div className="mb-6 p-4 bg-green-500/20 border border-green-500/30 rounded-lg">
+          <p className="text-green-400 font-medium flex items-center gap-2">
+            <FaCheckCircle />
+            Your attendance has already been marked for today!
+          </p>
+        </div>
+      )}
+      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* QR Code Scanner - Placed first for emphasis */}
         <div className="md:col-span-3 mb-6">
@@ -528,6 +601,11 @@ export default function UserAttendance() {
               </h2>
               <p className="text-gray-400 mb-6">
                 Scan the QR code provided by your organization to mark your attendance quickly and easily.
+                {todayMarked && (
+                  <span className="block mt-2 text-green-400">
+                    Note: You have already marked your attendance for today, but you can still scan again if needed.
+                  </span>
+                )}
               </p>
               <QRCodeScanner onScan={handleQRScan} />
             </div>

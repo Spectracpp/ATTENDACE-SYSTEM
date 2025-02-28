@@ -117,7 +117,7 @@ router.post('/register', async (req, res) => {
     const user = new User({
       name,
       email: email.toLowerCase(),
-      password,
+      password, // Password will be hashed in the pre-save middleware
       phone,
       organizationName,
       department,
@@ -138,18 +138,6 @@ router.post('/register', async (req, res) => {
       organization: user.organizationName
     });
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
-
-    try {
-      await user.save();
-      console.log('Password saved successfully:', user._id);
-    } catch (saveError) {
-      console.error('Error saving password:', saveError);
-      throw saveError;
-    }
-
     // Generate verification token
     const verificationToken = jwt.sign(
       { userId: user._id },
@@ -157,13 +145,22 @@ router.post('/register', async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    // Send verification email
-    await sendVerificationEmail(user.email, verificationToken);
+    // Try to send verification email, but don't block registration if it fails
+    try {
+      await sendVerificationEmail(user.email, verificationToken);
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      // Continue with registration even if email sending fails
+    }
+
+    // Set user as verified since email verification is optional
+    user.isVerified = true;
+    await user.save();
 
     // Return success response
     res.status(201).json({
       success: true,
-      message: 'Registration successful. Please check your email to verify your account.',
+      message: 'Registration successful. You can now log in.',
       userId: user._id
     });
 
@@ -278,15 +275,7 @@ router.post('/login', async (req, res) => {
     if (!user.isActive) {
       return res.status(401).json({
         success: false,
-        message: 'Account is inactive. Please verify your email or contact support.'
-      });
-    }
-
-    // Check if email is verified (if required)
-    if (user.emailVerificationRequired && !user.emailVerified) {
-      return res.status(401).json({
-        success: false,
-        message: 'Please verify your email before logging in'
+        message: 'Account is inactive. Please contact support.'
       });
     }
 

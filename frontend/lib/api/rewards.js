@@ -7,7 +7,7 @@ import { apiRequest } from './base';
  */
 export async function getUserPoints() {
   try {
-    const response = await apiRequest('/user/profile', {
+    const response = await apiRequest('/api/rewards', {
       method: 'GET',
       timeout: 5000,
       retries: 1
@@ -23,7 +23,10 @@ export async function getUserPoints() {
     
     return {
       success: true,
-      points: response.user?.points || 0
+      points: response.points || 0,
+      currentStreak: response.currentStreak || 0,
+      longestStreak: response.longestStreak || 0,
+      nextReward: response.nextReward || null
     };
   } catch (error) {
     console.error('Error fetching user points:', error);
@@ -41,23 +44,15 @@ export async function getUserPoints() {
  */
 export async function getRewardCategories() {
   try {
-    const response = await apiRequest('/rewards/categories', {
+    const response = await apiRequest('/api/rewards/categories', {
       method: 'GET',
       timeout: 5000,
       retries: 1
     });
     
-    if (!response.success && response.error) {
-      console.error('Error fetching reward categories:', response.message);
-      return {
-        success: false,
-        message: response.message || 'Failed to fetch reward categories'
-      };
-    }
-    
     return {
       success: true,
-      categories: response
+      categories: response || []
     };
   } catch (error) {
     console.error('Error fetching reward categories:', error);
@@ -76,23 +71,15 @@ export async function getRewardCategories() {
  */
 export async function getRewardsByCategory(categoryId) {
   try {
-    const response = await apiRequest(`/rewards/category/${categoryId}`, {
+    const response = await apiRequest(`/api/rewards/category/${categoryId}`, {
       method: 'GET',
       timeout: 5000,
       retries: 1
     });
     
-    if (!response.success && response.error) {
-      console.error('Error fetching rewards by category:', response.message);
-      return {
-        success: false,
-        message: response.message || 'Failed to fetch rewards'
-      };
-    }
-    
     return {
       success: true,
-      rewards: response
+      rewards: response || []
     };
   } catch (error) {
     console.error('Error fetching rewards by category:', error);
@@ -110,23 +97,15 @@ export async function getRewardsByCategory(categoryId) {
  */
 export async function getAllRewards() {
   try {
-    const response = await apiRequest('/rewards/available', {
+    const response = await apiRequest('/api/rewards/available', {
       method: 'GET',
       timeout: 5000,
       retries: 1
     });
     
-    if (!response.success && response.error) {
-      console.error('Error fetching all rewards:', response.message);
-      return {
-        success: false,
-        message: response.message || 'Failed to fetch rewards'
-      };
-    }
-    
     return {
       success: true,
-      rewards: response
+      rewards: response || []
     };
   } catch (error) {
     console.error('Error fetching all rewards:', error);
@@ -144,23 +123,15 @@ export async function getAllRewards() {
  */
 export async function getClaimedRewards() {
   try {
-    const response = await apiRequest('/rewards/claimed', {
+    const response = await apiRequest('/api/rewards/claimed', {
       method: 'GET',
       timeout: 5000,
       retries: 1
     });
     
-    if (!response.success && response.error) {
-      console.error('Error fetching claimed rewards:', response.message);
-      return {
-        success: false,
-        message: response.message || 'Failed to fetch claimed rewards'
-      };
-    }
-    
     return {
       success: true,
-      rewards: response
+      rewards: response || []
     };
   } catch (error) {
     console.error('Error fetching claimed rewards:', error);
@@ -179,14 +150,14 @@ export async function getClaimedRewards() {
  */
 export async function claimReward(rewardId) {
   try {
-    const response = await apiRequest(`/rewards/claim/${rewardId}`, {
+    const response = await apiRequest('/api/rewards/claim', {
       method: 'POST',
-      timeout: 5000,
+      data: { rewardId },
+      timeout: 8000,
       retries: 1
     });
     
     if (!response.success && response.error) {
-      console.error('Error claiming reward:', response.message);
       return {
         success: false,
         message: response.message || 'Failed to claim reward'
@@ -195,7 +166,7 @@ export async function claimReward(rewardId) {
     
     return {
       success: true,
-      message: 'Reward claimed successfully',
+      message: 'Reward claimed successfully!',
       reward: response.reward
     };
   } catch (error) {

@@ -72,31 +72,64 @@ router.post('/mark', auth, async (req, res) => {
     const { qrCode, method, location } = req.body;
     const userId = req.user._id;
 
+    console.log('Received attendance request:', { 
+      qrCode: typeof qrCode === 'string' ? (qrCode.length > 50 ? qrCode.substring(0, 50) + '...' : qrCode) : 'object', 
+      method, 
+      location 
+    });
+
     // Parse QR code data
     let sessionId;
     try {
-      // Try to parse as JSON first
-      const parsedQR = typeof qrCode === 'string' ? JSON.parse(qrCode) : qrCode;
-      sessionId = parsedQR.sessionId;
+      // Try to parse as JSON first if it's a string
+      if (typeof qrCode === 'string') {
+        try {
+          const parsedQR = JSON.parse(qrCode);
+          console.log('Successfully parsed QR code JSON:', parsedQR);
+          sessionId = parsedQR.sessionId || parsedQR.id || parsedQR.data;
+        } catch (jsonError) {
+          console.log('QR code is not valid JSON, using as raw string');
+          // If not JSON, use the raw string as sessionId
+          sessionId = qrCode;
+        }
+      } else if (typeof qrCode === 'object') {
+        // If already an object, extract sessionId
+        sessionId = qrCode.sessionId || qrCode.id || qrCode.data;
+        console.log('QR code is an object, extracted sessionId:', sessionId);
+      } else {
+        // Fallback
+        sessionId = String(qrCode);
+        console.log('Using fallback sessionId:', sessionId);
+      }
     } catch (error) {
-      // If not JSON, use the raw string as sessionId
-      sessionId = qrCode;
+      console.error('Error parsing QR code:', error);
+      // If all parsing fails, use the raw input
+      sessionId = String(qrCode);
     }
 
     if (!sessionId) {
-      return res.status(400).json({ message: 'Invalid QR code format' });
+      console.error('Invalid QR code format, sessionId is missing');
+      return res.status(400).json({ message: 'Invalid QR code format: missing session identifier' });
     }
 
     // Find the QR session
+    console.log('Looking for QR session with sessionId:', sessionId);
     const qrSession = await QRSession.findOne({ sessionId }).populate('organization');
     
     if (!qrSession) {
-      return res.status(404).json({ message: 'QR session not found' });
+      console.error('QR session not found for sessionId:', sessionId);
+      return res.status(404).json({ message: 'QR code is invalid or has expired' });
     }
 
     // Check if session is active
-    if (qrSession.status !== 'active' || qrSession.isExpired()) {
-      return res.status(400).json({ message: 'QR code has expired' });
+    if (qrSession.status !== 'active') {
+      console.error('QR session is not active:', qrSession.status);
+      return res.status(400).json({ message: 'This QR code is no longer active' });
+    }
+    
+    if (qrSession.isExpired()) {
+      console.error('QR session has expired');
+      return res.status(400).json({ message: 'This QR code has expired' });
     }
 
     // Check if user is a member of the organization
@@ -107,6 +140,7 @@ router.post('/mark', auth, async (req, res) => {
     });
 
     if (!isMember) {
+      console.error('User is not a member of the organization');
       return res.status(403).json({ message: 'You are not a member of this organization' });
     }
 

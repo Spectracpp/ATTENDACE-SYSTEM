@@ -1,186 +1,354 @@
 'use client';
 
-import { useState } from 'react';
-import { FaTimes, FaDownload, FaCopy } from 'react-icons/fa';
-import { toast } from 'react-hot-toast';
+import { useState, useRef, useEffect } from 'react';
+import Modal from '../Modal';
+import { FaDownload, FaCopy, FaHistory, FaTimes, FaCheck } from 'react-icons/fa';
+import { Tooltip } from 'react-tooltip';
+import { QRCodeCanvas } from 'qrcode.react';
+import toast from 'react-hot-toast';
+import { formatDate, formatTime, getTimeRemaining, isQRCodeValid } from '@/lib/utils/dateUtils';
+import QRCodeHistoryModal from './QRCodeHistoryModal';
+import { motion } from 'framer-motion';
+import { QR_PLACEHOLDER } from '@/lib/constants';
 
 export default function ViewQRCodeModal({ qrCode, onClose }) {
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [qrImageUrl, setQrImageUrl] = useState(qrCode?.qrImage || '');
+  const [loadingImage, setLoadingImage] = useState(true);
+  const [imageError, setImageError] = useState(false);
+  const [qrDataValue, setQrDataValue] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const qrCanvasRef = useRef(null);
 
-  // Check if qrCode exists and has the necessary properties
-  if (!qrCode || !qrCode.qrImage) {
-    return (
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-gray-900 rounded-xl border border-gray-800 w-full max-w-md overflow-hidden p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-white">QR Code</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              <FaTimes />
-            </button>
-          </div>
-          <div className="text-center py-8">
-            <p className="text-red-400">Error: QR code data is missing or invalid.</p>
-            <button
-              onClick={onClose}
-              className="mt-4 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (qrCode) {
+      // Prepare QR code data for rendering and copying
+      const data = {
+        id: qrCode._id,
+        org: qrCode.organization?._id || qrCode.organization
+      };
+      
+      setQrDataValue(JSON.stringify(data));
+      
+      // Try to load the QR image if available
+      if (qrCode.qrImage && typeof qrCode.qrImage === 'string') {
+        setQrImageUrl(qrCode.qrImage);
+      } else {
+        // Use placeholder and rely on canvas
+        setImageError(true);
+        setQrImageUrl(QR_PLACEHOLDER);
+      }
+      
+      setLoadingImage(true);
+    }
+  }, [qrCode]);
+
+  const handleImageLoad = () => {
+    setLoadingImage(false);
+    setImageError(false);
+  };
+
+  const handleImageError = () => {
+    console.error('Failed to load QR code image, falling back to canvas');
+    setLoadingImage(false);
+    setImageError(true);
+    setQrImageUrl(QR_PLACEHOLDER);
+  };
 
   const handleDownload = () => {
-    setIsDownloading(true);
     try {
-      // Create a canvas element to draw the QR code
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      
-      img.onload = () => {
-        // Set canvas dimensions to match the image
-        canvas.width = img.width;
-        canvas.height = img.height;
+      // Try to download the image directly if we have a URL
+      if (qrImageUrl && !imageError && qrImageUrl !== QR_PLACEHOLDER) {
+        const downloadLink = document.createElement('a');
+        downloadLink.href = qrImageUrl;
         
-        // Draw the image on the canvas
-        ctx.drawImage(img, 0, 0);
+        // Create a better filename with organization name and timestamp
+        const orgName = typeof qrCode.organization === 'object' ? 
+            qrCode.organization.name?.replace(/\s+/g, '_').toLowerCase() : 
+            'organization';
+        const timestamp = new Date().toISOString().replace(/:/g, '-').substring(0, 19);
+        downloadLink.download = `qr-code-${orgName}-${timestamp}.png`;
         
-        // Convert canvas to blob
-        canvas.toBlob((blob) => {
-          // Create a download link
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `qr-code-${qrCode._id || 'download'}.png`;
-          document.body.appendChild(link);
-          link.click();
-          
-          // Clean up
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
-          setIsDownloading(false);
-          toast.success('QR code downloaded successfully');
-        }, 'image/png');
-      };
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        toast.success('QR code downloaded successfully');
+        return;
+      }
       
-      img.onerror = () => {
-        throw new Error('Failed to load QR code image');
-      };
+      // Fallback to canvas if image failed
+      const canvas = qrCanvasRef.current;
+      if (!canvas) {
+        throw new Error('QR code canvas not found');
+      }
       
-      // Set the source of the image to the QR code data URL
-      img.src = qrCode.qrImage;
+      const pngUrl = canvas
+        .toDataURL('image/png')
+        .replace('image/png', 'image/octet-stream');
+      
+      const downloadLink = document.createElement('a');
+      downloadLink.href = pngUrl;
+      
+      // Create a better filename with organization name and timestamp
+      const orgName = typeof qrCode.organization === 'object' ? 
+          qrCode.organization.name?.replace(/\s+/g, '_').toLowerCase() : 
+          'organization';
+      const timestamp = new Date().toISOString().replace(/:/g, '-').substring(0, 19);
+      downloadLink.download = `qr-code-${orgName}-${timestamp}.png`;
+      
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      
+      toast.success('QR code downloaded successfully');
     } catch (error) {
       console.error('Error downloading QR code:', error);
       toast.error('Failed to download QR code');
-      setIsDownloading(false);
     }
   };
 
-  const handleCopy = () => {
-    if (!qrCode.data) {
-      toast.error('No QR code data to copy');
-      return;
+  const handleCopyData = () => {
+    try {
+      const dataToCopy = qrDataValue || JSON.stringify({
+        id: qrCode._id,
+        org: qrCode.organization?._id || qrCode.organization
+      });
+      
+      navigator.clipboard.writeText(dataToCopy).then(
+        () => {
+          setCopySuccess(true);
+          toast.success('QR code data copied to clipboard');
+          // Reset copy status after 2 seconds
+          setTimeout(() => setCopySuccess(false), 2000);
+        },
+        (err) => {
+          console.error('Error copying to clipboard:', err);
+          toast.error('Failed to copy QR code data');
+        }
+      );
+    } catch (error) {
+      console.error('Error copying QR code data:', error);
+      toast.error('Failed to copy QR code data');
+    }
+  };
+
+  const handleViewHistory = () => {
+    setShowHistory(true);
+  };
+
+  // Calculate validity information using dateUtils
+  const getValidityInfo = () => {
+    if (!qrCode?.validUntil) return null;
+    
+    try {
+      const validUntil = new Date(qrCode.validUntil);
+      const validFrom = new Date(qrCode.validFrom || qrCode.createdAt);
+      const timeRemaining = getTimeRemaining(validUntil);
+      
+      return {
+        isValid: isQRCodeValid(validUntil),
+        validFrom: formatDate(validFrom),
+        validFromTime: formatTime(validFrom),
+        validUntil: formatDate(validUntil),
+        validUntilTime: formatTime(validUntil),
+        timeRemaining
+      };
+    } catch (error) {
+      console.error('Error calculating validity info:', error);
+      return null;
+    }
+  };
+
+  // Format remaining time for display
+  const formatRemainingTime = (timeRemaining) => {
+    if (!timeRemaining) return 'Unknown';
+    
+    if (timeRemaining.isExpired) {
+      return "Expired";
     }
     
-    navigator.clipboard.writeText(qrCode.data)
-      .then(() => {
-        toast.success('QR code data copied to clipboard');
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(() => toast.error('Failed to copy QR code data'));
+    if (timeRemaining.days > 0) {
+      return `${timeRemaining.days}d ${timeRemaining.hours}h ${timeRemaining.minutes}m remaining`;
+    }
+    
+    if (timeRemaining.hours > 0) {
+      return `${timeRemaining.hours}h ${timeRemaining.minutes}m ${timeRemaining.seconds}s remaining`;
+    }
+    
+    return `${timeRemaining.minutes}m ${timeRemaining.seconds}s remaining`;
   };
 
+  // Format validity dates
+  const validityInfo = getValidityInfo();
+  const validFrom = validityInfo ? `${validityInfo.validFrom} ${validityInfo.validFromTime}` : 'Not specified';
+  const validUntil = validityInfo ? `${validityInfo.validUntil} ${validityInfo.validUntilTime}` : 'Not specified';
+  const isValid = validityInfo?.isValid || false;
+  const timeRemaining = validityInfo?.timeRemaining;
+
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 rounded-xl border border-gray-800 w-full max-w-md overflow-hidden">
-        <div className="flex justify-between items-center p-4 border-b border-gray-800">
-          <h2 className="text-xl font-bold text-white">QR Code</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            <FaTimes />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-6">
-          {/* QR Code Image */}
-          <div className="bg-white p-4 rounded-lg flex items-center justify-center">
-            {qrCode.qrImage ? (
-              <img
-                src={qrCode.qrImage}
-                alt="QR Code"
-                className="max-w-full max-h-64 object-contain"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2YwZjBmMCIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LXNpemU9IjI0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSIgZmlsbD0iIzY2NiI+UVIgSW1hZ2UgRXJyb3I8L3RleHQ+PC9zdmc+';
-                }}
-              />
-            ) : (
-              <div className="w-full h-64 flex items-center justify-center bg-gray-100">
-                <p className="text-gray-500">QR code image not available</p>
-              </div>
-            )}
-          </div>
-
-          {/* QR Code Details */}
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-gray-400">Organization</p>
-              <p className="text-white font-medium">{qrCode.organization || 'Unknown'}</p>
-            </div>
-
-            <div>
-              <p className="text-sm text-gray-400">Valid Until</p>
-              <p className="text-white font-medium">
-                {qrCode.validUntil ? new Date(qrCode.validUntil).toLocaleString() : 'Not specified'}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-sm text-gray-400">Type</p>
-              <p className="text-white font-medium capitalize">{qrCode.type || 'Unknown'}</p>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-4">
-            <button
-              onClick={handleDownload}
-              disabled={isDownloading}
-              className="flex-1 py-2 rounded-lg bg-gradient-to-r from-[#ff0080] to-[#7928ca] text-white font-medium hover:opacity-90 transition-opacity flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {isDownloading ? (
-                <>
-                  <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
-                  Downloading...
-                </>
-              ) : (
-                <>
-                  <FaDownload />
-                  Download
-                </>
+    <>
+      <Modal title="QR Code Details" onClose={onClose}>
+        <div className="flex flex-col md:flex-row gap-6">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="relative w-64 h-64 flex items-center justify-center bg-white p-2 rounded-lg shadow-sm">
+              {/* Loading spinner */}
+              {loadingImage && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-70 z-10">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full"
+                  />
+                </div>
               )}
-            </button>
-            <button
-              onClick={handleCopy}
-              disabled={!qrCode.data}
-              className="px-4 py-2 rounded-lg bg-black/40 text-white hover:bg-black/60 transition-colors disabled:opacity-50 flex items-center justify-center"
-              title={qrCode.data ? 'Copy QR code data' : 'No data to copy'}
-            >
-              {copied ? 'Copied!' : <FaCopy />}
-            </button>
+              
+              {/* QR Image with fallback */}
+              {!imageError ? (
+                <img
+                  src={qrImageUrl}
+                  alt="QR Code"
+                  className="w-full h-full object-contain"
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <QRCodeCanvas
+                    ref={qrCanvasRef}
+                    value={qrDataValue || qrCode._id || 'fallback'}
+                    size={240}
+                    level="H"
+                    includeMargin={true}
+                  />
+                </div>
+              )}
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={handleDownload}
+                className="flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                data-tooltip-id="tooltip"
+                data-tooltip-content="Download QR Code"
+              >
+                <FaDownload />
+                <span className="hidden sm:inline">Download</span>
+              </button>
+              
+              <button
+                onClick={handleCopyData}
+                className="flex items-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                data-tooltip-id="tooltip"
+                data-tooltip-content="Copy QR Code Data"
+              >
+                {copySuccess ? <FaCheck /> : <FaCopy />}
+                <span className="hidden sm:inline">{copySuccess ? 'Copied!' : 'Copy Data'}</span>
+              </button>
+              
+              <button
+                onClick={handleViewHistory}
+                className="flex items-center gap-2 px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+                data-tooltip-id="tooltip"
+                data-tooltip-content="View Scan History"
+              >
+                <FaHistory />
+                <span className="hidden sm:inline">History</span>
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex-1">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-500">ID</h3>
+                <p className="text-gray-800 font-mono text-sm break-all">{qrCode?._id || 'Not available'}</p>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-semibold text-gray-500">Organization</h3>
+                <p className="text-gray-800">
+                  {qrCode?.organization?.name || 'Not available'}
+                </p>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-semibold text-gray-500">Created By</h3>
+                <p className="text-gray-800">
+                  {qrCode?.createdBy?.name || 'Not available'}
+                </p>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-semibold text-gray-500">Status</h3>
+                <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm ${isValid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  {isValid ? 'Active' : 'Expired'}
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-semibold text-gray-500">Valid Period</h3>
+                <div className="text-gray-800">
+                  <p>From: {validFrom}</p>
+                  <p>Until: {validUntil}</p>
+                </div>
+              </div>
+              
+              {timeRemaining && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-500">Time Remaining</h3>
+                  <p className={`text-${isValid ? 'green' : 'red'}-600 font-medium`}>
+                    {formatRemainingTime(timeRemaining)}
+                  </p>
+                </div>
+              )}
+              
+              {qrCode?.location && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-500">Location</h3>
+                  <p className="text-gray-800">
+                    {qrCode.location.coordinates ? 
+                      `Lat: ${qrCode.location.coordinates[1]}, Long: ${qrCode.location.coordinates[0]}` : 
+                      'Location data not available'}
+                  </p>
+                </div>
+              )}
+              
+              {qrCode?.settings?.locationRadius && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-500">Location Radius</h3>
+                  <p className="text-gray-800">{qrCode.settings.locationRadius} meters</p>
+                </div>
+              )}
+              
+              {qrCode?.allowMultipleScans !== undefined && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-500">Multiple Scans</h3>
+                  <p className="text-gray-800">{qrCode.allowMultipleScans ? 'Allowed' : 'Not Allowed'}</p>
+                </div>
+              )}
+              
+              {qrCode?.scanHistory && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-500">Scan Count</h3>
+                  <p className="text-gray-800">
+                    {qrCode.scanHistory.filter(scan => scan.status === 'success').length}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+      </Modal>
+      
+      {/* QR Code History Modal */}
+      {showHistory && (
+        <QRCodeHistoryModal
+          qrCodeId={qrCode._id}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
+      
+      <Tooltip id="tooltip" />
+    </>
   );
 }

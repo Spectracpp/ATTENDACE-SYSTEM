@@ -442,9 +442,12 @@ router.post('/join', auth, async (req, res) => {
     // Add user to organization
     const memberStatus = organization.settings?.requireAdminApproval ? 'pending' : 'active';
     
+    // If the user is an admin in the system, give them admin role in the organization too
+    const memberRole = req.user.role === 'admin' ? 'admin' : 'member';
+    
     organization.members.push({
       user: req.user._id,
-      role: 'member',
+      role: memberRole,
       status: memberStatus,
       joinedAt: Date.now()
     });

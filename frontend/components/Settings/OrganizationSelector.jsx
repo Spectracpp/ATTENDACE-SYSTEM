@@ -61,6 +61,17 @@ export default function OrganizationSelector() {
     
     try {
       setChanging(true);
+      
+      // Check if user has admin role in the target organization
+      const targetOrg = organizations.find(org => org._id === orgId);
+      const userRole = targetOrg?.userRole || targetOrg?.role || 'member';
+      const isAdmin = userRole === 'admin' || userRole === 'owner';
+      
+      // If the organization doesn't have an admin role for the user, warn them
+      if (!isAdmin) {
+        console.warn('Changing to organization where user is not an admin');
+      }
+      
       const response = await setActiveOrganization(orgId);
       if (response.success) {
         setActiveOrgId(orgId);
@@ -80,7 +91,10 @@ export default function OrganizationSelector() {
         
         toast.success('Organization changed successfully');
       } else {
-        toast.error(response.message || 'Failed to change organization');
+        // Display more detailed error message
+        const errorMessage = response.message || 'Failed to change organization';
+        console.error('Error changing organization:', errorMessage, response.error);
+        toast.error(errorMessage);
       }
     } catch (error) {
       toast.error('Error changing organization');

@@ -2,11 +2,14 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/app/context/AuthContext';
-import { FaUser, FaEnvelope, FaPhone, FaBuilding, FaIdBadge } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaPhone, FaBuilding, FaIdBadge, FaSignInAlt } from 'react-icons/fa';
+import JoinOrganizationModal from '@/components/Organization/JoinOrganizationModal';
+import toast from 'react-hot-toast';
 
 export default function AdminProfile() {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -20,6 +23,14 @@ export default function AdminProfile() {
     e.preventDefault();
     // TODO: Implement profile update logic
     setIsEditing(false);
+  };
+
+  const handleCloseJoinModal = async (shouldRefresh) => {
+    setShowJoinModal(false);
+    if (shouldRefresh) {
+      toast.success('Successfully joined organization');
+      // Refresh user data or redirect to organizations page
+    }
   };
 
   return (
@@ -106,7 +117,17 @@ export default function AdminProfile() {
 
           {/* Administrative Information */}
           <div className="p-6 rounded-lg bg-black/50 border border-gray-800 backdrop-blur-xl space-y-4">
-            <h2 className="text-lg font-semibold text-white">Administrative Information</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-white">Administrative Information</h2>
+              <button
+                type="button"
+                onClick={() => setShowJoinModal(true)}
+                className="px-3 py-1 rounded-md bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors text-sm flex items-center gap-1"
+              >
+                <FaSignInAlt className="w-3 h-3" />
+                Join Organization
+              </button>
+            </div>
             
             <div className="space-y-4">
               <div>
@@ -171,6 +192,13 @@ export default function AdminProfile() {
           </div>
         )}
       </form>
+      {showJoinModal && (
+        <JoinOrganizationModal
+          isOpen={showJoinModal}
+          onClose={() => handleCloseJoinModal(false)}
+          onSuccess={() => handleCloseJoinModal(true)}
+        />
+      )}
     </div>
   );
 }

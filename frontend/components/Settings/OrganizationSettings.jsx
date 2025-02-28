@@ -11,6 +11,8 @@ import {
   getOrganizationMembers
 } from '@/lib/api/organization';
 import JoinOrganizationForm from '@/components/Organization/JoinOrganizationForm';
+import AdminJoinOrganization from '@/components/Settings/AdminJoinOrganization';
+import { useAuth } from '@/app/context/AuthContext';
 
 export default function OrganizationSettings({ isAdmin, profileData }) {
   const [organizations, setOrganizations] = useState([]);
@@ -18,6 +20,7 @@ export default function OrganizationSettings({ isAdmin, profileData }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedOrg, setSelectedOrg] = useState(null);
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -483,6 +486,13 @@ export default function OrganizationSettings({ isAdmin, profileData }) {
         </div>
       )}
       <JoinOrganizationForm onSuccess={fetchOrganizations} />
+      
+      {/* Only render admin join component for users with admin or superadmin role */}
+      {user && (user.role === 'admin' || user.role === 'superadmin') && (
+        <div className="mt-6">
+          <AdminJoinOrganization />
+        </div>
+      )}
     </div>
   );
 }

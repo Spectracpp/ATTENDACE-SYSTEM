@@ -106,7 +106,8 @@ export async function apiRequest(endpoint, options = {}) {
 
         if (!response.ok) {
           const errorMessage = data.message || `HTTP error! status: ${response.status}`;
-          console.error(`API error (${response.status}):`, errorMessage);
+          const errorDetails = data.error || data.details || '';
+          console.error(`API error (${response.status}):`, errorMessage, errorDetails);
           
           // For 404 errors, return a standardized response instead of throwing
           if (response.status === 404) {
@@ -118,6 +119,26 @@ export async function apiRequest(endpoint, options = {}) {
               organizations: [],
               users: [],
               attendance: []
+            };
+          }
+          
+          // For 500 errors, provide more context
+          if (response.status === 500) {
+            return {
+              success: false,
+              message: errorMessage || 'Internal server error',
+              error: errorDetails || 'Server encountered an unexpected condition',
+              errorCode: response.status
+            };
+          }
+          
+          // For 401/403 errors, handle auth issues
+          if (response.status === 401 || response.status === 403) {
+            return {
+              success: false,
+              message: errorMessage || (response.status === 401 ? 'Authentication required' : 'Permission denied'),
+              error: errorDetails || (response.status === 401 ? 'Unauthorized access' : 'Forbidden access'),
+              errorCode: response.status
             };
           }
           

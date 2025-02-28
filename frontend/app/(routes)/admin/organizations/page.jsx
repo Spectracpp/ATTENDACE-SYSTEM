@@ -1,16 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FaBuilding, FaUsers, FaQrcode, FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
+import { FaBuilding, FaUsers, FaQrcode, FaEdit, FaTrash, FaPlus, FaSignInAlt } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getOrganizations, deleteOrganization } from '@/lib/api/organization';
 import toast from 'react-hot-toast';
 import CreateOrganizationModal from '@/components/Organization/CreateOrganizationModal';
+import JoinOrganizationModal from '@/components/Organization/JoinOrganizationModal';
 
 export default function OrganizationsPage() {
   const [organizations, setOrganizations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
   const [selectedOrg, setSelectedOrg] = useState(null);
 
   const fetchOrganizations = async () => {
@@ -65,6 +67,13 @@ export default function OrganizationsPage() {
     }
   };
 
+  const handleCloseJoinModal = async (shouldRefresh) => {
+    setShowJoinModal(false);
+    if (shouldRefresh) {
+      await fetchOrganizations();
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -77,13 +86,22 @@ export default function OrganizationsPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800">Organizations</h1>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition duration-200"
-        >
-          <FaPlus className="text-sm" />
-          <span>Add Organization</span>
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={() => setShowJoinModal(true)}
+            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition duration-200"
+          >
+            <FaSignInAlt className="text-sm" />
+            <span>Join Organization</span>
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition duration-200"
+          >
+            <FaPlus className="text-sm" />
+            <span>Add Organization</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -146,6 +164,16 @@ export default function OrganizationsPage() {
           onSuccess={() => {
             fetchOrganizations();
             handleCloseModal();
+          }}
+        />
+      )}
+      {showJoinModal && (
+        <JoinOrganizationModal
+          isOpen={showJoinModal}
+          onClose={handleCloseJoinModal}
+          onSuccess={() => {
+            fetchOrganizations();
+            handleCloseJoinModal();
           }}
         />
       )}

@@ -33,6 +33,7 @@ export default function AdminRegister() {
     role: 'admin',
     organizationId: '',
     organizationCode: '',
+    organizationName: '',
     registrationCode: ''
   });
 
@@ -51,7 +52,8 @@ export default function AdminRegister() {
         return {
           ...prev,
           [name]: value,
-          organizationCode: selectedOrg ? selectedOrg.code : ''
+          organizationCode: selectedOrg ? selectedOrg.code : '',
+          organizationName: selectedOrg ? selectedOrg.name : ''
         };
       }
       return { ...prev, [name]: value };
@@ -110,6 +112,11 @@ export default function AdminRegister() {
     // Organization Code validation
     if (!formData.organizationCode.trim()) {
       newErrors.organizationCode = 'Organization Code is required';
+    }
+
+    // Organization Name validation
+    if (!formData.organizationName.trim()) {
+      newErrors.organizationName = 'Organization Name is required';
     }
 
     // Registration Code validation
@@ -215,7 +222,7 @@ export default function AdminRegister() {
             <div className="text-sm text-gray-400">
               Already have an account?{' '}
               <Link 
-                href="/auth/login" 
+                href="/auth/login/admin" 
                 className="text-[#ff0080] hover:text-[#ff0080]/80 transition-colors"
               >
                 Sign In
@@ -391,6 +398,27 @@ export default function AdminRegister() {
                     />
                   </div>
                   {errors.organizationCode && <p className={errorClasses}>{errors.organizationCode}</p>}
+                </div>
+
+                {/* Organization Name Input */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <BuildingOfficeIcon className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      name="organizationName"
+                      value={formData.organizationName}
+                      onChange={handleChange}
+                      placeholder="Organization name"
+                      className={`${inputBaseClasses} ${errors.organizationName ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                      readOnly
+                    />
+                  </div>
+                  {errors.organizationName && <p className={errorClasses}>{errors.organizationName}</p>}
                 </div>
 
                 {/* Employee ID Input */}

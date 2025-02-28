@@ -94,6 +94,19 @@ export async function removeOrganizationMember(orgId, memberId) {
   }
 }
 
+export async function joinOrganization(data) {
+  try {
+    const response = await apiRequest('/organizations/join', {
+      method: 'POST',
+      body: data
+    });
+    return response;
+  } catch (error) {
+    console.error('Error joining organization:', error);
+    throw error;
+  }
+}
+
 export async function updateOrganizationMember(orgId, memberId, data) {
   try {
     const response = await apiRequest(`/organizations/${orgId}/members/${memberId}`, {

@@ -36,7 +36,8 @@ export default function UserRegister() {
     semester: '',
     department: '',
     organizationId: '',
-    organizationCode: ''
+    organizationCode: '',
+    organizationName: ''
   });
 
   const [errors, setErrors] = useState({});
@@ -50,7 +51,8 @@ export default function UserRegister() {
         return {
           ...prev,
           [name]: value,
-          organizationCode: selectedOrg ? selectedOrg.code : ''
+          organizationCode: selectedOrg ? selectedOrg.code : '',
+          organizationName: selectedOrg ? selectedOrg.name : ''
         };
       }
       return { ...prev, [name]: value };
@@ -119,6 +121,11 @@ export default function UserRegister() {
     // Organization Code validation
     if (!formData.organizationCode.trim()) {
       newErrors.organizationCode = 'Organization Code is required';
+    }
+
+    // Organization Name validation
+    if (!formData.organizationName.trim()) {
+      newErrors.organizationName = 'Organization Name is required';
     }
 
     // Password validation (at least 6 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char)
@@ -351,6 +358,27 @@ export default function UserRegister() {
                     />
                   </div>
                   {errors.organizationCode && <p className={errorClasses}>{errors.organizationCode}</p>}
+                </div>
+
+                {/* Organization Name Input */}
+                <div>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <BuildingOfficeIcon className={iconClasses} />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      name="organizationName"
+                      value={formData.organizationName}
+                      onChange={handleChange}
+                      placeholder="Organization name"
+                      className={`${inputBaseClasses} ${errors.organizationName ? 'border-red-500' : ''}`}
+                      disabled={isLoading}
+                      readOnly
+                    />
+                  </div>
+                  {errors.organizationName && <p className={errorClasses}>{errors.organizationName}</p>}
                 </div>
 
                 {/* Password Input */}

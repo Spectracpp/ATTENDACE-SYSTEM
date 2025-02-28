@@ -6,7 +6,7 @@
  * @param {number} lon2 - Longitude of second point
  * @returns {number} Distance in meters
  */
-function calculateDistance(lat1, lon1, lat2, lon2) {
+function getDistanceBetweenCoordinates(lat1, lon1, lat2, lon2) {
   const R = 6371e3; // Earth's radius in meters
   const φ1 = lat1 * Math.PI/180;
   const φ2 = lat2 * Math.PI/180;
@@ -22,5 +22,5 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 module.exports = {
-  calculateDistance
+  getDistanceBetweenCoordinates
 };

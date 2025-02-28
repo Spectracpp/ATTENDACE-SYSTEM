@@ -88,7 +88,7 @@ export default function Home() {
 
                 <div className="flex items-center gap-4">
                   <Link 
-                    href="/auth/register"
+                    href="/auth/register/user"
                     className="cyberpunk-button px-8 py-4 text-lg group"
                   >
                     Get Started 

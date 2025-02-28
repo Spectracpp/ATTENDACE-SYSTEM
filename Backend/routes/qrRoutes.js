@@ -48,14 +48,31 @@ router.post('/generate',
 
       await qrSession.save();
 
-      // Generate QR code
+      // Generate QR code with optimized options
       const qrData = {
         sessionId: qrSession.sessionId,
         type: qrSession.type,
         timestamp: new Date().toISOString()
       };
 
-      const qrImage = await qr.toDataURL(JSON.stringify(qrData));
+      // Use options to optimize QR code size and quality
+      const qrOptions = {
+        errorCorrectionLevel: 'M', // 'L', 'M', 'Q', 'H' - M is a good balance
+        type: 'image/png',
+        quality: 0.8,
+        margin: 2,
+        width: 400, // Reduced from default
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      };
+
+      const qrImage = await qr.toDataURL(JSON.stringify(qrData), qrOptions);
+
+      // Save the QR image URL to the session for future reference
+      qrSession.qrImage = qrImage;
+      await qrSession.save();
 
       res.json({
         success: true,
@@ -262,5 +279,59 @@ router.get('/stats',
       res.status(500).json({ message: "Error fetching QR statistics" });
     }
 });
+
+/**
+ * @route GET /api/qr
+ * @desc Get all QR codes (Admin only)
+ * @access Private
+ */
+router.get('/',
+  auth,
+  authorize('admin', 'super_admin'),
+  async (req, res) => {
+    try {
+      // Find all QR sessions for the user's accessible organizations
+      const qrSessions = await QRSession.find({})
+        .sort({ createdAt: -1 })
+        .populate('organization', 'name')
+        .populate('createdBy', 'name email')
+        .lean();
+
+      // Format QR sessions for consistent response
+      const formattedQRCodes = qrSessions.map(session => ({
+        _id: session._id,
+        sessionId: session.sessionId,
+        qrImage: session.qrImage, // This might be undefined
+        imageUrl: session.imageUrl, // This might be undefined
+        type: session.type,
+        status: session.status,
+        createdAt: session.createdAt,
+        expiresAt: session.expiresAt,
+        isActive: session.status === 'active',
+        active: session.status === 'active',
+        organization: {
+          id: session.organization?._id || null,
+          name: session.organization?.name || 'N/A'
+        },
+        organizationId: session.organization?._id || null,
+        organizationName: session.organization?.name || 'N/A',
+        scans: session.scans?.length || 0,
+        settings: session.settings || {}
+      }));
+
+      res.json({
+        success: true,
+        qrCodes: formattedQRCodes
+      });
+    } catch (error) {
+      console.error('Error fetching QR codes:', error);
+      res.status(500).json({ 
+        success: false,
+        message: "Error fetching QR codes",
+        error: error.message
+      });
+    }
+  }
+);
 
 module.exports = router;

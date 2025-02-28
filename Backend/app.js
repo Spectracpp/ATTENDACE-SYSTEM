@@ -14,6 +14,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const userAttendanceRoutes = require('./routes/userAttendanceRoutes');
 const userLeavesRoutes = require('./routes/userLeavesRoutes');
+const rewardsRoutes = require('./routes/rewards');
 
 require('dotenv').config();
 
@@ -106,6 +107,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/user', userAttendanceRoutes);
 app.use('/api/user', userLeavesRoutes);
+app.use('/api/rewards', rewardsRoutes);
 
 // Health check endpoint
 app.get('/api/health-check', (req, res) => {

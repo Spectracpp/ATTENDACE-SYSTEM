@@ -54,17 +54,37 @@ export async function POST(req) {
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000';
     console.log('Making request to backend:', `${backendUrl}/api/auth/register`);
 
+    // If organizationId is provided but organizationName is not, try to fetch it
+    let requestBody = {
+      ...body,
+      email: email.toLowerCase().trim(),
+      password: password.trim(), // Trim password to match login behavior
+      role: role
+    };
+
+    // If we have organizationId but no organizationName, we need to add it
+    if (body.organizationId && !body.organizationName) {
+      try {
+        // Fetch organization details to get the name
+        const orgResponse = await fetch(`${backendUrl}/api/organizations/${body.organizationId}`);
+        if (orgResponse.ok) {
+          const orgData = await orgResponse.json();
+          if (orgData.success && orgData.organization) {
+            requestBody.organizationName = orgData.organization.name;
+            console.log('Added organization name:', orgData.organization.name);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching organization details:', error);
+      }
+    }
+
     const response = await fetch(`${backendUrl}/api/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        ...body,
-        email: email.toLowerCase().trim(),
-        password: password, // Make sure we're sending the password
-        role: role // Explicitly include role
-      })
+      body: JSON.stringify(requestBody)
     });
 
     const data = await response.json();

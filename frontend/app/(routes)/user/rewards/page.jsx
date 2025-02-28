@@ -10,7 +10,7 @@ import { useAuth } from '@/app/context/AuthContext';
 export default function UserRewards() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [claiming, setClaimingId] = useState(null);
+  const [claiming, setClaiming] = useState(null);
   const [userPoints, setUserPoints] = useState(0);
   const [availableRewards, setAvailableRewards] = useState([]);
   const [claimedRewards, setClaimedRewards] = useState([]);
@@ -35,7 +35,7 @@ export default function UserRewards() {
         // Fetch user points
         const pointsResponse = await getUserPoints();
         if (pointsResponse.success) {
-          setUserPoints(pointsResponse.points);
+          setUserPoints(pointsResponse.points || 0);
         } else {
           toast.error('Failed to fetch points');
         }
@@ -46,6 +46,7 @@ export default function UserRewards() {
           setAvailableRewards(rewardsResponse.rewards || []);
         } else {
           toast.error('Failed to fetch rewards');
+          setAvailableRewards([]);
         }
 
         // Fetch claimed rewards
@@ -54,6 +55,7 @@ export default function UserRewards() {
           setClaimedRewards(claimedResponse.rewards || []);
         } else {
           toast.error('Failed to fetch claimed rewards');
+          setClaimedRewards([]);
         }
       } catch (error) {
         console.error('Error fetching rewards data:', error);
@@ -66,36 +68,47 @@ export default function UserRewards() {
     fetchData();
   }, []);
 
-  // Handle reward claim
+  // Handle claiming a reward
   const handleClaimReward = async (rewardId) => {
-    setClaimingId(rewardId);
+    setClaiming(rewardId);
+
     try {
+      const reward = availableRewards.find(r => r.id === rewardId);
+      if (!reward) {
+        toast.error('Reward not found');
+        setClaiming(null);
+        return;
+      }
+
+      if (userPoints < reward.points) {
+        toast.error('Not enough points to claim this reward');
+        setClaiming(null);
+        return;
+      }
+
       const response = await claimReward(rewardId);
+
       if (response.success) {
-        toast.success('Reward claimed successfully!');
-        
-        // Update user points
-        setUserPoints(prev => prev - response.reward.points);
-        
-        // Update claimed rewards list
+        // Deduct points and add to claimed rewards
+        setUserPoints(prev => prev - reward.points);
         setClaimedRewards(prev => [...prev, response.reward]);
         
-        // Remove or mark as claimed in available rewards
-        setAvailableRewards(prev => 
-          prev.map(reward => 
-            reward.id === rewardId 
-              ? { ...reward, claimed: true } 
-              : reward
-          )
-        );
+        // Remove from available (optional - depends on how backend is set up)
+        // If the reward can be claimed multiple times, don't remove it
+        // setAvailableRewards(prev => prev.filter(r => r.id !== rewardId));
+        
+        toast.success(response.message || 'Reward claimed successfully!');
+        
+        // Switch to claimed tab
+        setActiveTab('claimed');
       } else {
         toast.error(response.message || 'Failed to claim reward');
       }
     } catch (error) {
       console.error('Error claiming reward:', error);
-      toast.error('Error claiming reward');
+      toast.error('An error occurred while claiming the reward');
     } finally {
-      setClaimingId(null);
+      setClaiming(null);
     }
   };
 
@@ -124,200 +137,346 @@ export default function UserRewards() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black/95 flex items-center justify-center">
-        <div className="animate-pulse text-[#ff0080]">Loading rewards...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-black/95 text-white p-6">
-      {/* Header with points */}
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-center">
-        <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#ff0080] to-[#7928ca]">
-          Rewards Center
-        </h1>
-        <div className="flex items-center mt-4 md:mt-0 bg-black/50 p-3 rounded-lg border border-gray-800">
-          <FaCoins className="text-yellow-400 mr-2 text-xl" />
-          <span className="text-2xl font-bold text-yellow-400">{userPoints}</span>
-          <span className="ml-2 text-gray-400">points available</span>
+    <div className="container mx-auto px-4 py-8 max-w-6xl">
+      {/* Header with points display */}
+      <motion.div 
+        className="mb-10 p-8 rounded-2xl bg-gradient-to-br from-[#121218] to-[#1a1a24] border border-gray-800 shadow-lg"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="flex flex-col md:flex-row justify-between items-center">
+          <div className="mb-6 md:mb-0">
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Your Rewards</h1>
+            <p className="text-gray-400">Earn points by being present and claim exciting rewards!</p>
+          </div>
+          <div className="flex flex-col items-center">
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-[2px] rounded-2xl">
+              <div className="bg-gray-900 rounded-2xl p-4 flex items-center gap-4 w-full">
+                <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-full p-3">
+                  <FaCoins className="text-xl text-white" />
+                </div>
+                <div>
+                  <p className="text-gray-400 text-sm">Your Balance</p>
+                  <div className="flex items-center">
+                    <h2 className="text-2xl font-bold text-white">
+                      {loading ? (
+                        <span className="inline-block w-16 h-7 bg-gray-700 animate-pulse rounded"></span>
+                      ) : (
+                        <motion.span
+                          key={userPoints}
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          {userPoints}
+                        </motion.span>
+                      )}
+                    </h2>
+                    <span className="ml-2 text-purple-400 font-medium">points</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Category tabs */}
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold text-white mb-4">Browse Categories</h2>
+        <div className="flex overflow-x-auto pb-2 space-x-2 no-scrollbar">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setSelectedCategory('all')}
+            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
+              selectedCategory === 'all'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            <FaLayerGroup />
+            All Rewards
+          </motion.button>
+          
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setSelectedCategory('timeOff')}
+            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
+              selectedCategory === 'timeOff'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            <FaCalendarAlt />
+            Time Off
+          </motion.button>
+          
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setSelectedCategory('workPerks')}
+            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
+              selectedCategory === 'workPerks'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            <FaBriefcase />
+            Work Perks
+          </motion.button>
+          
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setSelectedCategory('wellness')}
+            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
+              selectedCategory === 'wellness'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            <FaHeartbeat />
+            Wellness
+          </motion.button>
+          
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setSelectedCategory('learning')}
+            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
+              selectedCategory === 'learning'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            <FaBook />
+            Learning
+          </motion.button>
+          
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setSelectedCategory('teamBonding')}
+            className={`px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 flex items-center gap-2 ${
+              selectedCategory === 'teamBonding'
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            <FaUsers />
+            Team Bonding
+          </motion.button>
         </div>
       </div>
 
-      {/* Category filters */}
-      <div className="mb-6 overflow-x-auto pb-2">
-        <div className="flex space-x-2">
-          {categories.map((category) => (
-            <button
-              key={category.id}
-              onClick={() => setSelectedCategory(category.id)}
-              className={`flex items-center px-4 py-2 rounded-full whitespace-nowrap ${
-                selectedCategory === category.id
-                  ? 'bg-gradient-to-r from-[#ff0080] to-[#7928ca] text-white'
-                  : 'bg-black/50 border border-gray-800 text-gray-300 hover:bg-black/70'
-              }`}
-            >
-              <span className="mr-2">{category.icon}</span>
-              {category.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex mb-6 border-b border-gray-800">
+      {/* Available / Claimed toggle */}
+      <div className="flex border border-gray-800 rounded-lg p-1 mb-8 max-w-md">
         <button
           onClick={() => setActiveTab('available')}
-          className={`pb-2 px-4 font-medium ${
+          className={`flex-1 py-2.5 text-sm font-medium rounded-md transition-all duration-200 ${
             activeTab === 'available'
-              ? 'text-[#ff0080] border-b-2 border-[#ff0080]'
-              : 'text-gray-400 hover:text-gray-300'
+              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
+              : 'text-gray-400 hover:text-white'
           }`}
         >
           Available Rewards
         </button>
         <button
           onClick={() => setActiveTab('claimed')}
-          className={`pb-2 px-4 font-medium ${
+          className={`flex-1 py-2.5 text-sm font-medium rounded-md transition-all duration-200 ${
             activeTab === 'claimed'
-              ? 'text-[#ff0080] border-b-2 border-[#ff0080]'
-              : 'text-gray-400 hover:text-gray-300'
+              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
+              : 'text-gray-400 hover:text-white'
           }`}
         >
-          My Rewards
+          Claimed Rewards
         </button>
       </div>
 
+      {/* Loading state */}
+      {loading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, index) => (
+            <div key={index} className="bg-gray-900 border border-gray-800 rounded-xl p-5 flex flex-col">
+              <div className="flex justify-between items-start mb-3">
+                <div className="w-10 h-10 bg-gray-800 rounded-md animate-pulse"></div>
+                <div className="w-16 h-6 bg-gray-800 rounded-full animate-pulse"></div>
+              </div>
+              <div className="w-3/4 h-6 bg-gray-800 rounded animate-pulse mb-2"></div>
+              <div className="w-full h-4 bg-gray-800 rounded animate-pulse mb-4"></div>
+              <div className="w-full h-4 bg-gray-800 rounded animate-pulse mb-2"></div>
+              <div className="mt-auto w-full h-10 bg-gray-800 rounded-lg animate-pulse"></div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Rewards grid */}
-      {activeTab === 'available' ? (
-        <motion.div 
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-        >
-          {filteredRewards.length > 0 ? (
-            filteredRewards.map((reward) => (
+      {!loading && activeTab === 'available' ? (
+        filteredRewards.length > 0 ? (
+          <motion.div 
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            {filteredRewards.map((reward, index) => (
+              <motion.div
+                key={reward.id} 
+                variants={itemVariants}
+                custom={index}
+                className="bg-gradient-to-br from-[#1f1f2b] to-[#121218] border border-gray-800 rounded-xl overflow-hidden shadow-lg hover:shadow-purple-900/10 hover:border-purple-500/30 transition-all duration-300"
+              >
+                <div className="p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="text-4xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 p-3 rounded-xl">
+                      {reward.icon || '🎁'}
+                    </div>
+                    <div className="flex items-center px-3 py-1.5 rounded-full bg-black/30 border border-gray-800">
+                      <FaCoins className="text-yellow-400 mr-1.5 text-xs" />
+                      <span className="text-yellow-400 font-semibold">{reward.points}</span>
+                    </div>
+                  </div>
+                  
+                  <h3 className="text-xl font-bold mb-2 text-white">{reward.name}</h3>
+                  <p className="text-gray-400 text-sm mb-6 line-clamp-2">{reward.description}</p>
+                  
+                  <button
+                    onClick={() => handleClaimReward(reward.id)}
+                    disabled={userPoints < reward.points || claiming === reward.id}
+                    className={`w-full px-4 py-3 rounded-lg font-medium text-sm transition-all duration-300 ${
+                      userPoints >= reward.points 
+                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-purple-600/30'
+                        : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {claiming === reward.id ? (
+                      <div className="flex items-center justify-center">
+                        <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
+                        <span>Processing...</span>
+                      </div>
+                    ) : userPoints < reward.points ? (
+                      `Need ${reward.points - userPoints} more points`
+                    ) : (
+                      'Claim Reward'
+                    )}
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        ) : (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center p-12 rounded-xl bg-gradient-to-br from-[#1f1f2b] to-[#121218] border border-gray-800"
+          >
+            <div className="text-6xl mb-4">🏆</div>
+            <h3 className="text-2xl font-bold text-white mb-2">No rewards available</h3>
+            <p className="text-gray-500 max-w-md mx-auto">
+              There are currently no rewards available in this category. Please check back later or try another category.
+            </p>
+          </motion.div>
+        )
+      ) : !loading && (
+        claimedRewards.length > 0 ? (
+          <motion.div 
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            {claimedRewards.map((reward, index) => (
               <motion.div
                 key={reward.id}
                 variants={itemVariants}
-                className="bg-black/50 border border-gray-800 rounded-xl overflow-hidden hover:border-[#ff0080] transition-all"
+                custom={index}
+                className="bg-gradient-to-br from-[#1f1f2b] to-[#121218] border border-gray-800 rounded-xl overflow-hidden shadow-lg"
               >
-                <div className="p-5">
+                <div className="p-6">
                   <div className="flex justify-between items-start mb-4">
-                    <div className="text-4xl">{reward.icon}</div>
-                    <div className="flex items-center bg-black/50 px-3 py-1 rounded-full">
-                      <FaCoins className="text-yellow-400 mr-1" />
-                      <span className="font-bold text-yellow-400">{reward.points}</span>
+                    <div className="text-4xl bg-gradient-to-br from-green-500/20 to-teal-500/20 p-3 rounded-xl">
+                      {reward.icon || '🎁'}
+                    </div>
+                    <div className="bg-green-900/30 text-green-500 px-3 py-1.5 rounded-full text-xs font-medium border border-green-800/30">
+                      {reward.status || 'Claimed'}
                     </div>
                   </div>
-                  <h3 className="text-xl font-bold mb-2">{reward.name}</h3>
-                  <p className="text-gray-400 mb-4 text-sm">{reward.description}</p>
-                  <div className="mt-auto">
-                    <button
-                      onClick={() => handleClaimReward(reward.id)}
-                      disabled={userPoints < reward.points || claiming === reward.id}
-                      className={`w-full py-2 px-4 rounded-lg font-medium ${
-                        userPoints >= reward.points
-                          ? 'bg-gradient-to-r from-[#ff0080] to-[#7928ca] hover:opacity-90 text-white'
-                          : 'bg-gray-800 text-gray-400 cursor-not-allowed'
-                      }`}
-                    >
-                      {claiming === reward.id ? (
-                        <span className="flex items-center justify-center">
-                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Claiming...
-                        </span>
-                      ) : userPoints >= reward.points ? (
-                        'Claim Reward'
-                      ) : (
-                        `Need ${reward.points - userPoints} more points`
-                      )}
-                    </button>
+                  
+                  <h3 className="text-xl font-bold mb-2 text-white">{reward.name}</h3>
+                  <p className="text-gray-400 text-sm mb-4">{reward.description || 'No description available'}</p>
+                  
+                  <div className="flex items-center text-xs text-gray-500 mt-auto pt-3 border-t border-gray-800">
+                    <FaCalendarAlt className="mr-1.5" />
+                    Claimed on {new Date(reward.claimedAt).toLocaleDateString()}
                   </div>
                 </div>
               </motion.div>
-            ))
-          ) : (
-            <div className="col-span-full text-center py-10 text-gray-400">
-              No rewards found in this category.
-            </div>
-          )}
-        </motion.div>
-      ) : (
-        <motion.div 
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-        >
-          {claimedRewards.length > 0 ? (
-            claimedRewards.map((reward) => (
-              <motion.div
-                key={reward.id}
-                variants={itemVariants}
-                className="bg-black/50 border border-gray-800 rounded-xl overflow-hidden"
-              >
-                <div className="p-5">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="text-4xl">{reward.icon || '🎁'}</div>
-                    <div className="bg-green-900/50 text-green-400 px-3 py-1 rounded-full text-xs font-medium">
-                      Claimed
-                    </div>
-                  </div>
-                  <h3 className="text-xl font-bold mb-2">{reward.name}</h3>
-                  <p className="text-gray-400 mb-2 text-sm">{reward.description || 'Reward claimed'}</p>
-                  <div className="text-xs text-gray-500">
-                    <p>Claimed: {new Date(reward.claimed).toLocaleDateString()}</p>
-                    <p>Expires: {new Date(reward.expiresAt).toLocaleDateString()}</p>
-                  </div>
-                </div>
-              </motion.div>
-            ))
-          ) : (
-            <div className="col-span-full text-center py-10 text-gray-400">
-              You haven't claimed any rewards yet.
-            </div>
-          )}
-        </motion.div>
+            ))}
+          </motion.div>
+        ) : (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center p-12 rounded-xl bg-gradient-to-br from-[#1f1f2b] to-[#121218] border border-gray-800"
+          >
+            <div className="text-6xl mb-4">🎁</div>
+            <h3 className="text-2xl font-bold text-white mb-2">No claimed rewards yet</h3>
+            <p className="text-gray-500 max-w-md mx-auto">
+              You haven't claimed any rewards yet. Browse the available rewards and use your points to claim something special!
+            </p>
+          </motion.div>
+        )
       )}
 
       {/* How to earn more points */}
-      <div className="mt-12 bg-black/50 border border-gray-800 rounded-xl p-6">
-        <h2 className="text-xl font-bold mb-4">How to Earn More Points</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="flex items-start p-3 bg-black/30 rounded-lg">
-            <div className="bg-[#ff0080]/20 p-2 rounded-lg mr-3">
-              <FaGift className="text-[#ff0080]" />
+      <div className="mt-16">
+        <h2 className="text-xl font-semibold text-white mb-6">How to Earn More Points</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <motion.div 
+            className="p-6 rounded-xl bg-gradient-to-br from-[#1f1f2b] to-[#121218] border border-gray-800 shadow-lg"
+            whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
+          >
+            <div className="bg-blue-500/20 p-3 rounded-xl w-12 h-12 flex items-center justify-center mb-4">
+              <FaCalendarCheck className="text-xl text-blue-400" />
             </div>
-            <div>
-              <h3 className="font-medium">Mark Attendance</h3>
-              <p className="text-sm text-gray-400">Earn 10 points each time you mark attendance</p>
+            <h3 className="text-lg font-semibold text-white mb-2">Daily Check-in</h3>
+            <p className="text-gray-400 text-sm">
+              Earn 10 points every day you check in. Build a streak for bonus points!
+            </p>
+          </motion.div>
+          
+          <motion.div 
+            className="p-6 rounded-xl bg-gradient-to-br from-[#1f1f2b] to-[#121218] border border-gray-800 shadow-lg"
+            whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
+          >
+            <div className="bg-purple-500/20 p-3 rounded-xl w-12 h-12 flex items-center justify-center mb-4">
+              <FaClipboardCheck className="text-xl text-purple-400" />
             </div>
-          </div>
-          <div className="flex items-start p-3 bg-black/30 rounded-lg">
-            <div className="bg-[#7928ca]/20 p-2 rounded-lg mr-3">
-              <FaGift className="text-[#7928ca]" />
+            <h3 className="text-lg font-semibold text-white mb-2">Complete Tasks</h3>
+            <p className="text-gray-400 text-sm">
+              Finish assigned tasks on time to earn between 20-50 points per task.
+            </p>
+          </motion.div>
+          
+          <motion.div 
+            className="p-6 rounded-xl bg-gradient-to-br from-[#1f1f2b] to-[#121218] border border-gray-800 shadow-lg"
+            whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
+          >
+            <div className="bg-pink-500/20 p-3 rounded-xl w-12 h-12 flex items-center justify-center mb-4">
+              <FaAward className="text-xl text-pink-400" />
             </div>
-            <div>
-              <h3 className="font-medium">Attendance Streak</h3>
-              <p className="text-sm text-gray-400">Earn bonus points for consistent attendance</p>
-            </div>
-          </div>
-          <div className="flex items-start p-3 bg-black/30 rounded-lg">
-            <div className="bg-[#ff0080]/20 p-2 rounded-lg mr-3">
-              <FaGift className="text-[#ff0080]" />
-            </div>
-            <div>
-              <h3 className="font-medium">Early Check-in</h3>
-              <p className="text-sm text-gray-400">Earn extra points for early check-ins</p>
-            </div>
-          </div>
+            <h3 className="text-lg font-semibold text-white mb-2">Special Achievements</h3>
+            <p className="text-gray-400 text-sm">
+              Get recognized for outstanding work and receive bonus points from admins.
+            </p>
+          </motion.div>
         </div>
       </div>
     </div>

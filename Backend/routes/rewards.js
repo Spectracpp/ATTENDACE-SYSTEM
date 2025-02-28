@@ -160,11 +160,28 @@ router.get('/claimed', auth, async (req, res) => {
 });
 
 // Claim a reward
-router.post('/claim/:rewardId', auth, async (req, res) => {
+router.post('/claim', auth, async (req, res) => {
   try {
-    const { rewardId } = req.params;
+    const { rewardId } = req.body;
     
-    // Find the reward in available rewards
+    if (!rewardId) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Reward ID is required' 
+      });
+    }
+    
+    // Find the user
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+    
+    // Find reward from available rewards
     let reward = null;
     let category = null;
     
@@ -176,49 +193,61 @@ router.post('/claim/:rewardId', auth, async (req, res) => {
         break;
       }
     }
-
+    
     if (!reward) {
-      return res.status(404).json({ message: 'Reward not found' });
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Reward not found' 
+      });
     }
-
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
+    
     // Check if user has enough points
-    if (user.points < reward.points) {
-      return res.status(400).json({ message: 'Insufficient points' });
+    if ((user.points || 0) < reward.points) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Insufficient points to claim this reward' 
+      });
     }
-
-    // Add reward to user's claimed rewards
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 30); // 30 days expiry
-
-    user.rewards.push({
+    
+    // Check if the user has already claimed this reward
+    if (user.rewards && user.rewards.some(r => r.id === rewardId)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'You have already claimed this reward' 
+      });
+    }
+    
+    // Deduct points and add to claimed rewards
+    user.points = (user.points || 0) - reward.points;
+    
+    const claimedReward = {
       id: reward.id,
       name: reward.name,
-      claimed: new Date(),
-      expiresAt: expiryDate
-    });
-
-    // Deduct points
-    user.points -= reward.points;
-
+      points: reward.points,
+      category,
+      claimedAt: new Date(),
+      status: 'pending',
+      icon: reward.icon
+    };
+    
+    if (!user.rewards) {
+      user.rewards = [];
+    }
+    
+    user.rewards.push(claimedReward);
     await user.save();
-
+    
     res.json({
+      success: true,
       message: 'Reward claimed successfully',
-      reward: {
-        ...reward,
-        category,
-        claimed: new Date(),
-        expiresAt: expiryDate
-      }
+      reward: claimedReward
     });
   } catch (error) {
     console.error('Error claiming reward:', error);
-    res.status(500).json({ message: 'Error claiming reward' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error claiming reward' 
+    });
   }
 });
 

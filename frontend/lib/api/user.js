@@ -194,6 +194,15 @@ export async function joinOrganization(code) {
 
 export async function setActiveOrganization(organizationId) {
   try {
+    // Validate organizationId
+    if (!organizationId) {
+      console.error('Invalid organizationId provided to setActiveOrganization');
+      return {
+        success: false,
+        message: 'Invalid organization ID'
+      };
+    }
+
     const response = await apiRequest('/users/active-organization', {
       method: 'PUT',
       body: { organizationId },
@@ -203,10 +212,11 @@ export async function setActiveOrganization(organizationId) {
     
     // Check if the response indicates an error
     if (!response.success && response.error) {
-      console.error('Error setting active organization:', response.message);
+      console.error('Error setting active organization:', response.message, response.error);
       return {
         success: false,
-        message: response.message || 'Failed to set active organization'
+        message: response.message || 'Failed to set active organization',
+        error: response.error
       };
     }
     
@@ -215,7 +225,8 @@ export async function setActiveOrganization(organizationId) {
     console.error('Error setting active organization:', error);
     return {
       success: false,
-      message: error.message || 'Failed to set active organization'
+      message: error.message || 'Failed to set active organization',
+      error: error.toString()
     };
   }
 }

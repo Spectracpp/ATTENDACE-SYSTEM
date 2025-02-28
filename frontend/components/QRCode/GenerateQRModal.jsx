@@ -63,19 +63,36 @@ export default function GenerateQRModal({ onClose, onSuccess }) {
         toast.success('QR Code generated successfully!');
         
         // Make sure the QR code data is properly formatted
-        if (response.qrCode && response.qrCode.qrImage) {
+        const qrCodeData = response.qrCode || {};
+        
+        // Check for qrImage or imageUrl property
+        const qrImageUrl = qrCodeData.qrImage || qrCodeData.imageUrl;
+        
+        if (qrImageUrl) {
           // Ensure the qrImage is a valid data URL
-          if (!response.qrCode.qrImage.startsWith('data:image')) {
-            console.error('Invalid QR code image format:', response.qrCode.qrImage.substring(0, 30) + '...');
+          if (!qrImageUrl.startsWith('data:image')) {
+            console.error('Invalid QR code image format:', qrImageUrl.substring(0, 30) + '...');
             toast.error('QR code image format is invalid');
           } else {
-            setGeneratedQRCode(response.qrCode);
+            // Format the QR code data for consistent structure
+            const formattedQRCode = {
+              ...qrCodeData,
+              qrImage: qrImageUrl,
+              organization: {
+                id: qrCodeData.organization?.id || qrCodeData.organizationId || organizationId,
+                name: qrCodeData.organization?.name || 
+                      qrCodeData.organizationName || 
+                      organizations.find(org => org._id === organizationId)?.name || 'N/A'
+              }
+            };
+            
+            setGeneratedQRCode(formattedQRCode);
             setShowQRCodeModal(true);
-            if (onSuccess) onSuccess(response.qrCode);
+            if (onSuccess) onSuccess(formattedQRCode);
           }
         } else {
-          console.error('QR code data is missing or invalid:', response.qrCode);
-          toast.error('QR code data is missing or invalid');
+          console.error('QR code image is missing:', qrCodeData);
+          toast.error('QR code image is missing');
         }
       } else {
         toast.error(response.message || 'Failed to generate QR Code');
